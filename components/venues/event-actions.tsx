@@ -70,12 +70,12 @@ export function EventMoreMenu({ slug, ws, kind, tone = "light", align = "end", o
 }
 
 /** The event's own website, opened in a new tab. */
-export function WebsiteButton({ url, tone = "light", size = "sm" }: { url: string; tone?: "light" | "dark"; size?: "sm" | "lg" }) {
+export function WebsiteButton({ url, tone = "light", size = "sm", className = "" }: { url: string; tone?: "light" | "dark"; size?: "sm" | "lg"; className?: string }) {
   const t = useT();
-  const cls = tone === "dark" ? "border-white/40 bg-white/10 text-white hover:bg-white/20" : "border-[#B7BDC9] bg-white text-[#121826] hover:bg-[#F7F8F6]";
+  const cls = tone === "dark" ? "border-white/60 bg-white/20 text-white hover:bg-white/30" : "border-[#B7BDC9] bg-white text-[#121826] hover:bg-[#F7F8F6]";
   const h = size === "lg" ? "h-11 px-4 text-[15px] font-medium" : "h-[34px] px-2.5 text-[13px] font-semibold";
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 rounded-[4px] border no-underline ${h} ${cls}`}>
+    <a href={url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 rounded-[4px] border no-underline ${h} ${cls} ${className}`}>
       {t("Official website")}<ExternalLink size={size === "lg" ? 15 : 13} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span>
     </a>
   );

@@ -1,3 +1,4 @@
+import { OpenCallsAside } from "@/components/open-calls/panel";
 import Link from "@/components/site/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -142,5 +143,5 @@ async function Inner({ searchParams }: { searchParams: Promise<SP> }) {
 
 /** AH02 — merge two accounts: start signed in to the kept account, prove the second by signing in to it, confirm. */
 export default function Page(props: { searchParams: Promise<SP> }) {
-  return <HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner {...props} /></Reveal></HelpPage>;
+  return <><HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner {...props} /></Reveal></HelpPage><OpenCallsAside /></>;
 }

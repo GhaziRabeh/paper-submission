@@ -109,7 +109,7 @@ export async function YourParticipation({ slug, acr, mine, open, programHref }: 
       ) : (
         <p className="mb-0 mt-2.5 text-[14px] text-[#4A5263]">
           {open ? t("You have no paper at {acr} yet.", { acr }) : t("You have no paper at {acr}.", { acr })}{" "}
-          {open ? <Link href={`/submit/${slug}`} className="font-semibold text-[#2F5FD0]">{t("Submit a paper")}</Link> : null}
+          {open ? <Link href={`/submit/${slug}`} className="font-semibold text-[#2F5FD0]">{t("Submit a contribution")}</Link> : null}
         </p>
       )}
       <ul className="m-0 mt-3.5 flex list-none flex-col border-t border-[#EEF0EC] p-0 pt-2">

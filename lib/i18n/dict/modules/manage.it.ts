@@ -274,7 +274,7 @@ export const manage_it: Record<string, string> = {
   "Teal": "Verde acqua",
   "Text": "Testo",
   "The Owner of this event. Add a second owner later so the event never depends on one person (A2).": "Il proprietario di questo evento. Aggiungi poi un secondo proprietario così l’evento non dipende mai da una sola persona (A2).",
-  "The public page shows “Submit a paper”. Locked settings are now marked with a padlock in setup.": "La pagina pubblica mostra «Invia un articolo». Le impostazioni bloccate sono ora segnate con un lucchetto nella configurazione.",
+  "The public page shows “Submit a contribution”. Locked settings are now marked with a padlock in setup.": "La pagina pubblica mostra «Invia un contributo». Le impostazioni bloccate sono ora segnate con un lucchetto nella configurazione.",
   "Then it expires and the AE is told (E5)": "Poi scade e l’AE viene avvisato (E5)",
   "This page isn’t open to your role": "Questa pagina non è aperta al tuo ruolo",
   "Tick the first box to continue.": "Spunta la prima casella per continuare.",

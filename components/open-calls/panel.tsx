@@ -4,6 +4,14 @@ import { getT } from "@/lib/i18n/server";
 import { OpenCallsList } from "@/components/open-calls/list";
 import { OpenCallsSkeleton } from "@/components/open-calls/rows";
 
+/**
+ * The open calls as the right-hand half of the sign-in frame ((auth)/layout.tsx): sign-in, forgot password and the
+ * account-help pages. Shown from 1024 px only (.auth-aside in globals.css).
+ */
+export function OpenCallsAside() {
+  return <div className="auth-aside"><OpenCallsPanel /></div>;
+}
+
 /** Right-hand navy panel of canvas PR02: real upcoming submission deadlines with live countdowns. */
 export async function OpenCallsPanel() {
   const t = await getT();

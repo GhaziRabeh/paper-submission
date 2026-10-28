@@ -18,6 +18,10 @@ export type PasswordPolicy = {
 };
 export const DEFAULT_POLICY: PasswordPolicy = { minLength: 8, mix: "letters_number", phraseLength: 12, checkLeaks: true };
 
+/** Sign-up (create account, step 3): only a length rule, no strength bar. Reset and change password keep the Admin rules. */
+export const SIGNUP_MIN_LENGTH = 6;
+export const signupPasswordOk = (p: string) => p.length >= SIGNUP_MIN_LENGTH && p.length <= 128;
+
 export function parsePolicy(raw: Record<string, unknown> | null | undefined): PasswordPolicy {
   const r = raw ?? {};
   const num = (v: unknown, d: number, lo: number, hi: number) => (typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : d);

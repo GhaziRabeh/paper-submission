@@ -1,7 +1,8 @@
 import { EventMoreMenu, WebsiteButton } from "@/components/venues/event-actions";
-import { ExternalLink } from "lucide-react";
+import { CalendarPlus, ExternalLink } from "lucide-react";
 import Link from "@/components/site/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { CountdownCard, DatesList, FollowButton, LiveHeader, StatusCard } from "@/components/venues/venue-live";
 import { getVenue, getVenuePublic } from "@/lib/venues/data";
 import { AttendingSection, GallerySection, TravelSection } from "@/components/venues/venue-sections";
@@ -27,6 +28,7 @@ const section = "scroll-mt-20 border-t border-[#DADDE3] py-8 first:border-t-0 fi
 
 export async function VenuePage({ slug, mode = "public" }: { slug: string; mode?: "public" | "workspace" }) {
   const ws = mode === "workspace";
+  await connection(); // countdowns and the open/closed state use the current time: render per request, never prerendered
   const [data, pub, myEvents] = await Promise.all([getVenue(slug), getVenuePublic(slug), ws ? getMyEvents() : Promise.resolve({} as MyEvents)]);
   if (!data) notFound();
   const win = await getSubmissionWindow(data.venue.id);
@@ -54,7 +56,7 @@ export async function VenueView({ data, pub, myEvents, mode = "public", win = nu
   const policies = details.policies ?? [];
   const organizers = details.organizers ?? [];
   const nav: [string, string][] = [
-    ["cfp", "Call for papers"], ["dates", "Dates"], ["types", "How to submit"], ["policies", "Policies"], ["publication", "Publication"],
+    ["cfp", "Call for Submissions"], ["types", "How to submit"], ["dates", "Important dates"], ["policies", "Policies"], ["publication", "Publication"],
     ...(pub && !online ? ([["attending", "Attending"], ["travel", "Venue & travel"]] as [string, string][]) : []),
     ...(pub?.info.gallery?.length ? ([["gallery", "Gallery"]] as [string, string][]) : []),
     ["program", "Program"], ["organizers", "Organizers"],
@@ -65,6 +67,8 @@ export async function VenueView({ data, pub, myEvents, mode = "public", win = nu
   const open = win ? win.open : v.kind === "journal" || v.dates.some((d) => (d.kind === "submission" || d.kind === "proposal") && Date.parse(d.startsAt) > Date.parse(generatedAt));
   const closedOn = win && !win.open ? fmtDay(win.closedAt, t.intl) : null;
   const programHref = ws ? `/workspace/events/${v.slug}/program` : `/program/${v.slug}`;
+  // "Submission stage" of a type follows its Action: "First Submission" while it can be submitted, "Final Submission" once closed.
+  const stageOf = (name: string) => ((win ? typeWindow(win, name) : { open: true }).open ? t("First Submission") : t("Final Submission"));
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#F5F6F3] text-[15px] leading-[1.5] text-[#121826]">
@@ -94,12 +98,16 @@ export async function VenueView({ data, pub, myEvents, mode = "public", win = nu
                 {basics.tagline ? <p className="mt-1 text-[16px] italic text-[#D6DCEA]">{basics.tagline}</p> : null}
                 <p className="mt-1.5 text-[15px] text-[#D6DCEA]">{[fmtRange(v.startsOn, v.endsOn, t.intl, t, v.kind === "journal"), where, v.society ? t("Sponsored by {society}", { society: v.society }) : null].filter(Boolean).join(" · ")}</p>
                 <div className="mt-5 flex flex-wrap gap-2.5">
-                  {open && v.submitUrl ? <a href={v.submitUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-1.5 rounded-[4px] bg-[#F2A93B] px-5 text-[15px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t("Submit a paper")}<ExternalLink size={15} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a>
-                    : open ? <Link href={`/submit/${v.slug}`} className="inline-flex h-11 items-center rounded-[4px] bg-[#F2A93B] px-5 text-[15px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t("Submit a paper")}</Link>
+                  {open && v.submitUrl ? <a href={v.submitUrl} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 items-center gap-1.5 rounded-[4px] bg-[#F2A93B] px-5 text-[15px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t("Submit a contribution")}<ExternalLink size={15} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a>
+                    : open ? <Link href={`/submit/${v.slug}`} className="inline-flex h-11 items-center rounded-[4px] bg-[#F2A93B] px-5 text-[15px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t("Submit a contribution")}</Link>
                     : <span aria-disabled="true" className="inline-flex h-11 cursor-not-allowed items-center rounded-[4px] bg-white/15 px-5 text-[15px] font-semibold text-white/80 ring-1 ring-white/30">{closedOn ? t("Submissions closed on {date}", { date: closedOn }) : t("Submissions closed")}</span>}
                   {website ? <WebsiteButton url={website} tone="dark" size="lg" /> : null}
-                  <FollowButton venueId={v.id} slug={v.slug} />
-                  <EventMoreMenu slug={v.slug} kind={v.kind} tone="dark" size="lg" align="start" onPage up />
+                  {/* Follow hidden for now. <FollowButton venueId={v.id} slug={v.slug} /> */}
+                  {/* The deadlines as a calendar file (.ics), the same link as in the More menu. */}
+                  <a href={`/venues/${v.slug}/calendar.ics`} className="inline-flex h-11 items-center gap-1.5 rounded-[4px] border border-white/60 bg-white/20 px-4 text-[15px] font-medium text-white no-underline hover:bg-white/30">
+                    <CalendarPlus size={15} aria-hidden />{t("Add deadlines to calendar")}
+                  </a>
+                  {/* More hidden for now. <EventMoreMenu slug={v.slug} kind={v.kind} tone="dark" size="lg" align="start" onPage up /> */}
                 </div>
               </div>
             </div>
@@ -123,15 +131,12 @@ export async function VenueView({ data, pub, myEvents, mode = "public", win = nu
       <div className="mx-auto box-border flex w-full max-w-[1280px] flex-col gap-10 px-5 pb-16 pt-2 sm:px-8 lg:flex-row lg:items-start">
         <main className="min-w-0 flex-auto">
           <section id="cfp" aria-labelledby="cfp-h" className={section}>
-            <h2 id="cfp-h" className={h2}>{t("Call for papers")}</h2>
+            <h2 id="cfp-h" className={h2}>{t("Call for Submissions")}</h2>
             <p className="mt-3 max-w-[68ch] whitespace-pre-line text-[17px]">{basics.publicText ?? details.cfp ?? t("{acr} — the organizers haven't published the call text yet.", { acr: v.acr })}</p>
+            {/* Topic chips and the "Accepting:" line hidden for now.
             {topics.length ? <div className="mt-4 flex flex-wrap gap-2">{topics.map((tp) => <span key={tp} className="rounded-full border border-[#DADDE3] bg-white px-3 py-1.5 text-[14px]">{tp}</span>)}</div> : null}
             {v.accepting ? <p className="mt-4 text-[14px] text-[#4A5263]">{t("Accepting:")} {t(v.accepting)}</p> : null}
-          </section>
-
-          <section id="dates" aria-labelledby="dates-h" className={section}>
-            <h2 id="dates-h" className={h2}>{t("Important dates")}</h2>
-            <DatesList dates={v.dates} generatedAt={generatedAt} />
+            */}
           </section>
 
           <section id="types" aria-labelledby="types-h" className={section}>
@@ -139,30 +144,37 @@ export async function VenueView({ data, pub, myEvents, mode = "public", win = nu
             <p className="mt-1 text-[14px] text-[#4A5263]">{t("Pick a type — you can change it until you submit.")}</p>
             {types.length ? (
               <div className="relative mt-4 overflow-x-auto rounded-[8px] border border-[#DADDE3] bg-white">
-                <table className="w-full min-w-[600px] border-collapse text-[14px]">
-                  <thead><tr className="border-b border-[#DADDE3] text-left font-mono text-[11px] uppercase tracking-[0.06em] text-[#4A5263]"><th className="px-4 py-2.5 font-medium">{t("Type")}</th><th className="px-4 py-2.5 font-medium">{t("Length")}</th><th className="px-4 py-2.5 font-medium">{t("Review")}</th><th className="px-4 py-2.5 font-medium"><span className="sr-only">{t("Action")}</span></th></tr></thead>
+                <table className="w-full min-w-[720px] border-collapse text-[14px]">
+                  <thead><tr className="border-b border-[#DADDE3] text-left font-mono text-[11px] uppercase tracking-[0.06em] text-[#4A5263]"><th className="px-4 py-2.5 font-medium">{t("Submission stage")}</th><th className="px-4 py-2.5 font-medium">{t("Type of submission")}</th><th className="px-4 py-2.5 font-medium">{t("Open")}</th><th className="px-4 py-2.5 font-medium">{t("Deadline")}</th><th className="px-4 py-2.5 text-right font-medium">{t("Action")}</th></tr></thead>
                   <tbody>
-                    {types.map((ty) => (
+                    {types.map((ty) => {
+                      // Open / Deadline / Action all read the same window as the database (lib/venues/window.ts).
+                      const w = win ? typeWindow(win, ty.name) : { open: true, deadline: null, closedAt: null };
+                      const due = fmtDay(w.open ? w.deadline : (w.closedAt ?? w.deadline), t.intl);
+                      return (
                       <tr key={ty.name} className="border-b border-[#EEF0EC] last:border-b-0">
+                        <td className="px-4 py-3">{stageOf(ty.name)}</td>
                         <td className="px-4 py-3"><strong>{ty.name}</strong>{ty.note ? <div className="text-[13px] text-[#4A5263]">{ty.note}</div> : null}</td>
-                        <td className="px-4 py-3">{ty.length ?? "—"}</td>
-                        <td className="px-4 py-3">{ty.review ?? "—"}</td>
-                        <td className="px-4 py-3 text-right">{(() => {
-                          const w = win ? typeWindow(win, ty.name) : { open: true, deadline: null, closedAt: null };
-                          if (!w.open) {
-                            const on = fmtDay(w.closedAt, t.intl);
-                            return <span className="inline-flex flex-col items-end gap-0.5"><span className="rounded-full bg-[#EEF0EC] px-2.5 py-0.5 text-[13px] font-semibold text-[#4A5263]">{t("Closed")}</span>{on ? <span className="text-[12px] text-[#4A5263]">{t("on {date}", { date: on })}</span> : null}</span>;
-                          }
-                          const until = fmtDay(w.deadline, t.intl);
-                          return <span className="inline-flex flex-col items-end gap-0.5"><Link href={`/submit/${v.slug}?type=${encodeURIComponent(ty.name)}`} className="font-semibold text-[#2F5FD0]">{/workshop|proposal/i.test(ty.name) ? t("Propose →") : t("Submit →")}</Link>{until ? <span className="text-[12px] text-[#4A5263]">{t("until {date}", { date: until })}</span> : null}</span>;
-                        })()}</td>
+                        <td className="px-4 py-3">{w.open
+                          ? <span className="rounded-full bg-[#E3F2EA] px-2.5 py-0.5 text-[13px] font-semibold text-[#14603F]">{t("Open")}</span>
+                          : <span className="rounded-full bg-[#EEF0EC] px-2.5 py-0.5 text-[13px] font-semibold text-[#4A5263]">{t("Closed")}</span>}</td>
+                        <td className="px-4 py-3">{due ?? "—"}</td>
+                        <td className="px-4 py-3 text-right">{w.open
+                          ? <Link href={`/submit/${v.slug}?type=${encodeURIComponent(ty.name)}`} className="font-semibold text-[#2F5FD0]">{/workshop|proposal/i.test(ty.name) ? t("Propose") : t("Submit")}</Link>
+                          : <span className="font-semibold text-[#4A5263]">{t("Closed")}</span>}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : <p className="mt-4 text-[14px] text-[#4A5263]">{t("Submission types will be listed here when the call opens.")}</p>}
             <p className="mt-4 text-[14px] text-[#4A5263]"><strong className="text-[#121826]">{t("No separate PDF test.")}</strong> {t("Your PDF is checked for fonts, page size, margins and names when you upload it, with the page number of any problem.")}</p>
+          </section>
+
+          <section id="dates" aria-labelledby="dates-h" className={section}>
+            <h2 id="dates-h" className={h2}>{t("Important dates")}</h2>
+            <DatesList dates={v.dates} generatedAt={generatedAt} />
           </section>
 
 {!HIDDEN_SECTIONS.has("policies") ? (<>

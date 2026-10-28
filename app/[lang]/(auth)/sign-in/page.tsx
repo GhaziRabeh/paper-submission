@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SignInPanel } from "@/components/signin/sign-in-panel";
-import { OpenCallsPanel } from "@/components/signin/open-calls";
+import { OpenCallsAside } from "@/components/open-calls/panel";
 import { senderDomain } from "@/lib/config/site";
 import { venueDeadline, venueSlugFrom } from "@/lib/auth/venue-deadline";
 import { LocalDeadline } from "@/components/auth/deadline-bits";
@@ -62,7 +62,7 @@ export default function Page({ searchParams }: { searchParams: Promise<Search> }
           <Panel searchParams={searchParams} />
         </Suspense>
       </main>
-      <div className="auth-aside"><OpenCallsPanel /></div>
+      <OpenCallsAside />
     </>
   );
 }

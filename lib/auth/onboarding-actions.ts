@@ -5,14 +5,15 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { absoluteUrl, safeNext } from "@/lib/config/site";
-import { scorePassword } from "@/lib/auth/password-rules";
-import { isLeakedIfChecked, serverPolicy } from "@/lib/auth/password-policy-server";
+import { signupPasswordOk } from "@/lib/auth/password-rules";
+import { isLeakedIfChecked } from "@/lib/auth/password-policy-server";
 import { turnstileOk } from "@/lib/site/turnstile";
 import { refuseIfLocked } from "@/lib/auth/lock-check";
 import { recordSignIn } from "@/lib/auth/sign-in-log";
 import { resolveOnboarding, stepHref } from "@/lib/auth/onboarding";
 import { noteStep, overLimit } from "@/lib/auth/attempts";
 import { expiresIn, sign, signingReady } from "@/lib/auth/signing";
+import { clearPendingSignup, readPendingSignup, setPendingSignup, type PendingSignup } from "@/lib/auth/pending-signup";
 import { getSiteFlags } from "@/lib/config/site-flags";
 
 export type ExistingKind = "complete" | "no_profile" | "secondary";
@@ -51,6 +52,11 @@ const startSchema = z.object({
   consent: z.literal("on", { message: "Please agree to continue." }),
   next: z.string().optional(),
   venue: z.string().optional(),
+  // Optional; the research profile (step 4) starts from them.
+  university: z.string().trim().max(200, "Use 200 characters or fewer.").optional(),
+  universityRor: z.union([z.literal(""), z.string().regex(/^https:\/\/ror\.org\/[a-z0-9]{6,12}$/)]).optional(),
+  country: z.union([z.literal(""), z.string().regex(/^[A-Z]{2}$/, "Choose a country from the list.")]).optional(),
+  grade: z.string().trim().max(80, "Use 80 characters or fewer.").optional(),
 });
 
 const SIGNUPS_PER_HOUR = 8;
@@ -79,14 +85,16 @@ const emailLimited = (e: { status?: number; code?: string; message: string }) =>
 export async function startSignup(_: StartState, formData: FormData): Promise<StartState> {
   const parsed = startSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
-  const { firstName, lastName, email, password = "", confirm = "", next, venue } = parsed.data;
-  // Site switch "sign-up code" off: name, email and password, and the account opens without an emailed code.
+  const { firstName, lastName, email, password = "", confirm = "", next, venue, university, universityRor, country, grade } = parsed.data;
+  // Site switch "sign-up code" off: step 1 is kept (signed cookie) and the password is chosen on step 2
+  // (/create-account/password, finishSignup), where the account is created without an emailed code.
   const noCode = !(await getSiteFlags()).signupEmailCode;
+  const stash = noCode && !passwordFirst();
   const legacy = passwordFirst() || noCode;
 
-  if (legacy) {
-    const rules = scorePassword(password, email, undefined, await serverPolicy());
-    if (!rules.ok) return { fieldErrors: { password: ["Choose a password that meets all the rules."] } };
+  if (legacy && !stash) {
+    // Sign-up: only a length rule (lib/auth/password-rules.ts, SIGNUP_MIN_LENGTH).
+    if (!signupPasswordOk(password)) return { fieldErrors: { password: ["Use at least 6 characters."] } };
     if (password !== confirm) return { fieldErrors: { confirm: ["The two passwords don't match yet."] } };
   }
 
@@ -99,41 +107,23 @@ export async function startSignup(_: StartState, formData: FormData): Promise<St
     return { message: "Too many sign-up attempts from this connection. Please wait an hour and try again." };
   }
   await noteStep(supabase, "started");
-  const meta = { given_name: firstName, family_name: lastName, consent_at: new Date().toISOString() };
+  const meta = {
+    given_name: firstName, family_name: lastName, consent_at: new Date().toISOString(),
+    ...(university ? { university, ...(universityRor ? { university_ror: universityRor } : {}) } : {}), ...(country ? { country } : {}),
+    ...(grade ? { grade } : {}),
+  };
+
+  if (stash) {
+    const status = await emailStatus(supabase, email);
+    if (status === "locked") return { message: LOCKED_MSG };
+    if (status && status !== "none") return { exists: { email, kind: status === "unconfirmed" || status === "no_password" ? "complete" : status } };
+    await setPendingSignup({ email, firstName, lastName, next, venue, meta: meta as Record<string, string> });
+    redirect(`/create-account/password${next ? `?next=${encodeURIComponent(safeNext(next))}` : ""}`);
+  }
 
   if (legacy) {
-    if (await isLeakedIfChecked(password)) return { fieldErrors: { password: ["That password has appeared in a data breach. Choose another."] } };
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { ...meta, password_set_at: new Date().toISOString(), ...(noCode ? { signup_flow: "password_no_code" } : {}) }, emailRedirectTo: absoluteUrl(`/auth/confirm?next=${encodeURIComponent(continueHref(next))}`) },
-    });
-    if (error) {
-      const code = error.code ?? "";
-      if (code === "user_already_exists" || code === "email_exists" || /already registered|already exists/i.test(error.message)) return { exists: { email } };
-      if (code === "weak_password" || /weak|pwned|leaked/i.test(error.message)) return { fieldErrors: { password: ["That password isn't accepted. Choose a longer one you don't use anywhere else."] } };
-      if (emailLimited(error)) { await noteStep(supabase, "email_failed"); return { message: "We can’t send confirmation emails right now — too many were sent in the last hour. Please try again a little later." }; }
-      console.error("[signup] failed:", error.status, code, error.message);
-      await noteStep(supabase, "email_failed");
-      return { message: "We couldn’t create your account. Check your email address and try again." };
-    }
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return { exists: { email } };
-    if (noCode) {
-      // Confirmed by the server (signed request, only for an account made moments ago), then signed in.
-      if (!data.session) {
-        const exp = expiresIn(5);
-        await supabase.rpc("confirm_signup_without_code", { p_email: email, p_expires: exp, p_sig: sign(`signup-noconfirm|${email}`, exp) });
-        const { error: e3 } = await supabase.auth.signInWithPassword({ email, password });
-        if (e3) {
-          console.error("[signup] no-code sign-in failed:", e3.status, e3.code, e3.message);
-          return { message: "Your account was created, but we couldn’t sign you in. Sign in with your email and password." };
-        }
-      }
-      await noteStep(supabase, "confirmed");
-      await recordSignIn(supabase, "password");
-      redirect(continueHref(next));
-    }
-    await noteStep(supabase, "code_sent");
-    redirect(verifyUrl(email, next, venue, `${firstName} ${lastName}`));
+    const r = await createWithPassword(supabase, { email, firstName, lastName, next, venue, meta }, password, noCode);
+    return r;
   }
 
   // Existing email: say so and continue from where that account stopped (review 22 Oct, problem 4).
@@ -173,6 +163,86 @@ export async function startSignup(_: StartState, formData: FormData): Promise<St
   }
   await noteStep(supabase, "code_sent");
   redirect(verifyUrl(email, next, venue, `${firstName} ${lastName}`));
+}
+
+/**
+ * The account with its password, in one go: rollback switch SIGNUP_PASSWORD_FIRST=1 (step 1 with the password), or
+ * the no-code sign-up's step 2 (finishSignup). No code: confirmed by the server and signed in at once.
+ */
+async function createWithPassword(
+  supabase: Awaited<ReturnType<typeof createClient>>, p: PendingSignup, password: string, noCode: boolean, beforeRedirect?: () => Promise<string | void>,
+): Promise<StartState> {
+  const { email, firstName, lastName, next, venue, meta } = p;
+  if (await isLeakedIfChecked(password)) return { fieldErrors: { password: ["That password has appeared in a data breach. Choose another."] } };
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { ...meta, password_set_at: new Date().toISOString(), ...(noCode ? { signup_flow: "password_no_code" } : {}) }, emailRedirectTo: absoluteUrl(`/auth/confirm?next=${encodeURIComponent(continueHref(next))}`) },
+  });
+  if (error) {
+    const code = error.code ?? "";
+    if (code === "user_already_exists" || code === "email_exists" || /already registered|already exists/i.test(error.message)) return { exists: { email } };
+    if (code === "weak_password" || /weak|pwned|leaked/i.test(error.message)) return { fieldErrors: { password: ["That password isn't accepted. Choose a longer one you don't use anywhere else."] } };
+    if (emailLimited(error)) { await noteStep(supabase, "email_failed"); return { message: "We can’t send confirmation emails right now — too many were sent in the last hour. Please try again a little later." }; }
+    console.error("[signup] failed:", error.status, code, error.message);
+    await noteStep(supabase, "email_failed");
+    return { message: "We couldn’t create your account. Check your email address and try again." };
+  }
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return { exists: { email } };
+  if (noCode) {
+    // Confirmed by the server (signed request, only for an account made moments ago), then signed in.
+    if (!data.session) {
+      const exp = expiresIn(5);
+      await supabase.rpc("confirm_signup_without_code", { p_email: email, p_expires: exp, p_sig: sign(`signup-noconfirm|${email}`, exp) });
+      const { error: e3 } = await supabase.auth.signInWithPassword({ email, password });
+      if (e3) {
+        console.error("[signup] no-code sign-in failed:", e3.status, e3.code, e3.message);
+        return { message: "Your account was created, but we couldn’t sign you in. Sign in with your email and password." };
+      }
+    }
+    await noteStep(supabase, "confirmed");
+    await recordSignIn(supabase, "password");
+    const to = await beforeRedirect?.();
+    redirect(to || continueHref(next));
+  }
+  await noteStep(supabase, "code_sent");
+  await beforeRedirect?.();
+  redirect(verifyUrl(email, next, venue, `${firstName} ${lastName}`));
+}
+
+/** No-code sign-up, step 2: the password for the details kept from step 1; creates the account and signs in. */
+export async function finishSignup(_: PasswordState, formData: FormData): Promise<PasswordState> {
+  const p = z.object({ password: z.string().max(128, "Use 128 characters or fewer."), confirm: z.string() }).safeParse(Object.fromEntries(formData));
+  if (!p.success) return { fieldErrors: p.error.flatten().fieldErrors };
+  const pending = await readPendingSignup();
+  if (!pending) return { message: "Your sign-up details expired. Please start again." };
+  const { password, confirm } = p.data;
+  if (!signupPasswordOk(password)) return { fieldErrors: { password: ["Use at least 6 characters."] } };
+  if (password !== confirm) return { fieldErrors: { confirm: ["The two passwords don't match yet."] } };
+  const supabase = await createClient();
+  // Signed in: the research profile is filled from step 1 (name, university, country), so the sign-up ends on
+  // the account profile page (Workspace › Account › Profile), where everything can be edited. If that fails,
+  // the usual next step (the research profile screen) opens instead.
+  const r = await createWithPassword(supabase, pending, password, true, async () => {
+    await clearPendingSignup();
+    const m = pending.meta;
+    await supabase.rpc("ensure_my_person"); // the person record, if the sign-up trigger hasn't made it yet
+    const { error } = await supabase.rpc("complete_profile", {
+      p_paper_name: `${pending.firstName} ${pending.lastName}`.trim(),
+      p_name_scripts: [],
+      p_institution: m.university || "Independent researcher",
+      p_ror_id: m.university_ror || null,
+      p_department: null,
+      p_country: m.country || null,
+      p_other_email: null,
+    });
+    if (error) { console.error("[signup] auto profile failed:", error.code, error.message); return; }
+    const { error: metaErr } = await supabase.auth.updateUser({ data: { onb: null } });
+    if (!metaErr) await supabase.auth.refreshSession();
+    await noteStep(supabase, "profile");
+    return "/workspace/account/profile";
+  });
+  if (r.exists) return { message: "This email already has an account. Sign in instead." };
+  return { message: r.message, fieldErrors: r.fieldErrors };
 }
 
 /** "Already have an account" panel → "Email me a sign-in code": a code, then the usual next-step rule. */
@@ -245,7 +315,7 @@ export async function saveChosenPassword(_: PasswordState, formData: FormData): 
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user?.email) return { message: "Your session ended. Sign in again with a code to choose your password." };
   const { password, confirm } = p.data;
-  if (!scorePassword(password, auth.user.email, undefined, await serverPolicy()).ok) return { fieldErrors: { password: ["Choose a password that meets all the rules."] } };
+  if (!signupPasswordOk(password)) return { fieldErrors: { password: ["Use at least 6 characters."] } };
   if (password !== confirm) return { fieldErrors: { confirm: ["The two passwords don't match yet."] } };
   if (await isLeakedIfChecked(password)) return { fieldErrors: { password: ["That password has appeared in a data breach. Choose another."] } };
 

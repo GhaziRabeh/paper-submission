@@ -30,8 +30,14 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
   const p = me.person;
   const fullName = p ? (p.paper_name || p.display_name || "").trim() : "";
   const first = p?.given_name?.trim() || "";
-  const suggested = me.affiliation ? null : await suggestFromEmailDomain(me.email);
-  const initialAff = me.affiliation ? { id: null, name: me.affiliation.institution, place: t("From your sign-up") } : null;
+  // University and country typed on the sign-up form (optional, kept in the account's sign-up details).
+  const meta = (au.user?.user_metadata ?? {}) as { university?: unknown; university_ror?: unknown; country?: unknown };
+  const signupUni = typeof meta.university === "string" ? meta.university.trim() : "";
+  const signupRor = typeof meta.university_ror === "string" && /^https:\/\/ror\.org\/[a-z0-9]+$/.test(meta.university_ror) ? meta.university_ror : null;
+  const signupCountry = typeof meta.country === "string" && /^[A-Z]{2}$/.test(meta.country) ? meta.country : "";
+  const suggested = me.affiliation || signupUni ? null : await suggestFromEmailDomain(me.email);
+  const initialAff = me.affiliation ? { id: null, name: me.affiliation.institution, place: t("From your sign-up") }
+    : signupUni ? { id: signupRor, name: signupUni, place: t("From your sign-up") } : null;
 
   return (
     <SplitLayout
@@ -58,7 +64,7 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
         suggested={suggested}
         initialAff={initialAff}
         countries={countryOptions("en")}
-        initialCountry={p?.country ?? me.affiliation?.country ?? ""}
+        initialCountry={p?.country || me.affiliation?.country || signupCountry}
         next={next}
       />
     </SplitLayout>

@@ -1,3 +1,4 @@
+import { OpenCallsAside } from "@/components/open-calls/panel";
 import Link from "@/components/site/link";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/server";
@@ -20,6 +21,7 @@ const items = [
 export default async function Page() {
   const t = await getT();
   return (
+    <>
     <AuthCard title={t("Account help")} lead={t("Choose what's going on.")} footer={<Link href="/contact">{t("Something else? Contact support")}</Link>}>
       <ul className="grid gap-2">
         {items.map((i) => (
@@ -33,5 +35,7 @@ export default async function Page() {
       </ul>
       <SupportLine lead="Still stuck? Write to" />
     </AuthCard>
+    <OpenCallsAside />
+    </>
   );
 }

@@ -22,7 +22,7 @@ export type FooterSize = "full" | "compact" | "minimal";
 
 const COLUMNS: { title: string; links: [string, string][] }[] = [
   { title: "Product", links: [["/events", "Open calls"], ["/organizers", "For organisers"], ["/pricing", "Pricing"], ["/manage/new", "Host a conference"]] },
-  { title: "Authors & reviewers", links: [["/events", "Submit a paper"], ["/help/reviewers", "Reviewer guides"], ["/help", "Help & guides"], ["/contact?topic=import", "Bring your PaperCept history"]] },
+  { title: "Authors & reviewers", links: [["/events", "Submit a contribution"], ["/help/reviewers", "Reviewer guides"], ["/help", "Help & guides"], ["/contact?topic=import", "Bring your PaperCept history"]] },
   { title: "Support", links: [["/contact", "Contact"], ["/maintenance", "System status"], ["/legal/security", "Security"], ["/legal/accessibility", "Accessibility"]] },
   { title: "Legal", links: [["/legal/privacy", "Privacy"], ["/legal/terms", "Terms"], ["/legal/cookies", "Cookies"]] },
 ];

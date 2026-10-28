@@ -1,3 +1,4 @@
+import { OpenCallsAside } from "@/components/open-calls/panel";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/server";
 import { getMe } from "@/lib/auth/me";
@@ -22,5 +23,5 @@ async function Inner() {
 
 /** AH02 — lost access to the account email: a request a person at Plenary checks (anonymous allowed, rate limited). */
 export default function Page() {
-  return <HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner /></Reveal></HelpPage>;
+  return <><HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner /></Reveal></HelpPage><OpenCallsAside /></>;
 }

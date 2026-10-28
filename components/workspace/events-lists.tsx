@@ -188,7 +188,7 @@ export function FollowingList({ rows, generatedAt }: { rows: EventRow[]; generat
                 </div>
                 <div className="mt-2.5"><DeadlineStrip dates={r.v.dates} generatedAt={generatedAt} /></div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#EEF0EC] pt-3">
-                  {open ? <Link href={`/submit/${r.v.slug}`} className={`${primary} bg-[#F2A93B] text-[#0E1B3D] hover:bg-[#E89B26]`}>{t("Submit a paper")}</Link> : null}
+                  {open ? <Link href={`/submit/${r.v.slug}`} className={`${primary} bg-[#F2A93B] text-[#0E1B3D] hover:bg-[#E89B26]`}>{t("Submit a contribution")}</Link> : null}
                   <Link href={`/workspace/events/${r.v.slug}`} className={`${primary} border border-[#B7BDC9] bg-white text-[#0E1B3D] hover:bg-[#F7F8F6]`}>{t("View event")}</Link>
                   <a href={`/venues/${r.v.slug}/calendar.ics`} className={linkCls}><CalendarPlus size={15} aria-hidden className="text-[#4A5263]" />{t("Add deadlines to calendar")}</a>
                   <span className="ms-auto"><FollowButton venueId={r.v.id} slug={r.v.slug} compact /></span>

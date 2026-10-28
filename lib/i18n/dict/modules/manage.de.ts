@@ -274,7 +274,7 @@ export const manage_de: Record<string, string> = {
   "Teal": "Petrol",
   "Text": "Text",
   "The Owner of this event. Add a second owner later so the event never depends on one person (A2).": "Owner dieser Veranstaltung. Fügen Sie später einen zweiten Owner hinzu, damit die Veranstaltung nie von einer Person abhängt (A2).",
-  "The public page shows “Submit a paper”. Locked settings are now marked with a padlock in setup.": "Die öffentliche Seite zeigt „Beitrag einreichen“. Gesperrte Einstellungen sind in der Einrichtung jetzt mit einem Schloss markiert.",
+  "The public page shows “Submit a contribution”. Locked settings are now marked with a padlock in setup.": "Die öffentliche Seite zeigt „Beitrag einreichen“. Gesperrte Einstellungen sind in der Einrichtung jetzt mit einem Schloss markiert.",
   "Then it expires and the AE is told (E5)": "Danach läuft sie ab und der AE wird informiert (E5)",
   "This page isn’t open to your role": "Diese Seite ist für Ihre Rolle nicht freigegeben",
   "Tick the first box to continue.": "Setzen Sie das erste Häkchen, um fortzufahren.",

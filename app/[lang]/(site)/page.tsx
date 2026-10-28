@@ -16,7 +16,7 @@ const h2 = "m-0 font-serif text-[36px] font-normal leading-[1.1] tracking-[-0.01
 const saffronBtn = "rounded-[4px] bg-[#F2A93B] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]";
 
 const PIPELINE = [
-  ["01 · CALL", "Call for papers", "Tracks, page limits, deadlines in your time zone.", "#2F5FD0"],
+  ["01 · CALL", "Call for Submissions", "Tracks, page limits, deadlines in your time zone.", "#2F5FD0"],
   ["02 · SUBMIT", "Upload & check", "PDF compliance checked at upload, not after.", "#2F5FD0"],
   ["03 · REVIEW", "Match & review", "Expertise matching, conflict rules, load limits.", "#A8600F"],
   ["04 · DECIDE", "Decide & notify", "Recommendations roll up; letters in one batch.", "#A8600F"],

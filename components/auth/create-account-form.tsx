@@ -3,7 +3,9 @@
 import Link from "@/components/site/link";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { focusFirstError } from "@/components/auth/focus-error";
-import { sendCodeToExisting, startSignup, type ExistingKind, type StartState } from "@/lib/auth/onboarding-actions";
+import { sendCodeToExisting, startSignup, type ExistingKind, type Org, type StartState } from "@/lib/auth/onboarding-actions";
+import { AffiliationPicker } from "@/components/auth/affiliation-picker";
+import { GradeSelect } from "@/components/auth/grade-select";
 import { OrcidIcon, ui } from "@/components/auth/split-layout";
 import { useT } from "@/lib/i18n/client";
 import { PasswordFields } from "@/components/auth/password-fields";
@@ -31,7 +33,7 @@ function checkEmail(v: string, tried: boolean): EmailCheck {
  * Step 1 of 4: name, email and terms. The password is chosen after the email code (step 3), unless the
  * rollback switch (SIGNUP_PASSWORD_FIRST=1) asks for the old order, where it is chosen here.
  */
-export function CreateAccountForm({ next, venue, withPassword = false, noCode = false }: { next?: string; venue?: string; withPassword?: boolean; noCode?: boolean }) {
+export function CreateAccountForm({ next, venue, withPassword = false, noCode = false, countries = [] }: { next?: string; venue?: string; withPassword?: boolean; noCode?: boolean; countries?: { code: string; name: string }[] }) {
   const [state, action, pending] = useActionState(startSignup, {} as StartState);
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
@@ -40,6 +42,7 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
   const [tried, setTried] = useState(false);
   const [orcidSoon, setOrcidSoon] = useState(false);
   const [pwOk, setPwOk] = useState(false);
+  const [uni, setUni] = useState<Org | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
   // server answered with field errors: focus the first one (plan D3)
@@ -110,7 +113,27 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
           <span id="pr6-email-hint" className="text-[13px]" style={{ color: emailErr ? "#B3261E" : e.hintInk }}>{t(emailErr ?? e.hint)}</span>
         </div>
 
-        {withPassword ? <PasswordFields email={email} tried={tried} serverErrors={{ password: fe?.password, confirm: fe?.confirm }} idPrefix="pr6" onValid={setPwOk} /> : null}
+        {/* Optional: carried into step 4 (research profile) as the affiliation and country. */}
+        <input type="hidden" name="university" value={uni?.name ?? ""} />
+        <input type="hidden" name="universityRor" value={uni?.id ?? ""} />
+        {/* All universities (ROR search as you type); "Other" lets you type the name yourself. */}
+        <div className="relative mt-3.5 flex flex-col gap-1.5">
+          <AffiliationPicker id="pr6-university" label={<>{t("University")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></>}
+            value={uni} onChange={setUni} invalid={!!fe?.university} otherOption />
+        </div>
+        <div className="mt-3.5 flex flex-col gap-1.5">
+          <FieldLabel htmlFor="pr6-country">{t("Country")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></FieldLabel>
+          <select id="pr6-country" name="country" autoComplete="country" defaultValue="" className={`${ui.input} px-2.5`} style={{ border: fe?.country ? red : norm }} aria-invalid={fe?.country ? true : undefined}>
+            <option value="">{t("Choose…")}</option>
+            {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="mt-3.5 flex flex-col gap-1.5">
+          <FieldLabel htmlFor="pr6-grade">{t("Grade")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></FieldLabel>
+          <GradeSelect id="pr6-grade" />
+        </div>
+
+        {withPassword ? <PasswordFields email={email} tried={tried} serverErrors={{ password: fe?.password, confirm: fe?.confirm }} idPrefix="pr6" onValid={setPwOk} signup /> : null}
 
         <label className="mt-4 flex items-start gap-2.5 text-[14px]">
           <input type="checkbox" name="consent" aria-required="true" checked={agree} onChange={(ev) => setAgree(ev.target.checked)} aria-invalid={agreeErr || undefined} className="mt-0.5 size-[18px] flex-none accent-[#0E1B3D]" />
@@ -120,9 +143,9 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
         {agreeErr ? <p className={`ml-7 mt-1.5 ${ui.error}`}>{t("Please agree to continue.")}</p> : null}
 
         <Turnstile />
-        <button type="submit" disabled={pending} className={`mt-[18px] ${ui.primary}`}>{pending ? (noCode ? t("Creating your account…") : t("Sending your code…")) : withPassword ? t("Create account") : t("Continue")}</button>
+        <button type="submit" disabled={pending} className={`mt-[18px] ${ui.primary}`}>{pending ? (noCode ? t("Saving…") : t("Sending your code…")) : withPassword ? t("Create account") : t("Continue")}</button>
       </form>
-      <p className={`mt-3 text-[13px] ${ui.muted}`}>{noCode ? t("Next, your profile: affiliation and ORCID. You get your PIN at once.") : withPassword ? t("Next, we'll email you a code to confirm your address.") : t("Next, we'll email you a code. After it, you choose your password.")}</p>
+      <p className={`mt-3 text-[13px] ${ui.muted}`}>{noCode && !withPassword ? t("Next, you choose your password.") : noCode ? t("Next, your profile: affiliation and ORCID. You get your PIN at once.") : withPassword ? t("Next, we'll email you a code to confirm your address.") : t("Next, we'll email you a code. After it, you choose your password.")}</p>
       <p className={`mt-[22px] text-[14px] ${ui.muted}`}>{t("Used PaperCept before?")} <Link href="/contact?topic=import" className={ui.link}>{t("Bring your history")}</Link> {t("after you sign up.")}</p>
     </>
   );

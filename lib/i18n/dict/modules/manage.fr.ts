@@ -274,7 +274,7 @@ export const manage_fr: Record<string, string> = {
   "Teal": "Bleu canard",
   "Text": "Texte",
   "The Owner of this event. Add a second owner later so the event never depends on one person (A2).": "Le propriétaire de cet événement. Ajoutez ensuite un second propriétaire pour que l’événement ne dépende jamais d’une seule personne (A2).",
-  "The public page shows “Submit a paper”. Locked settings are now marked with a padlock in setup.": "La page publique affiche « Soumettre un article ». Les réglages verrouillés portent désormais un cadenas dans la configuration.",
+  "The public page shows “Submit a contribution”. Locked settings are now marked with a padlock in setup.": "La page publique affiche « Soumettre une contribution ». Les réglages verrouillés portent désormais un cadenas dans la configuration.",
   "Then it expires and the AE is told (E5)": "Elle expire ensuite et l’éditeur associé est prévenu (E5)",
   "This page isn’t open to your role": "Cette page n’est pas ouverte à votre rôle",
   "Tick the first box to continue.": "Cochez la première case pour continuer.",

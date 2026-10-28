@@ -3,7 +3,7 @@ import { usePasswordPolicy } from "@/components/auth/password-policy";
 import { Eye, EyeOff } from "lucide-react";
 
 import { useEffect, useState } from "react";
-import { policyText, scorePassword } from "@/lib/auth/password-rules";
+import { SIGNUP_MIN_LENGTH, policyText, scorePassword, signupPasswordOk } from "@/lib/auth/password-rules";
 import { PasswordMeter, useLeakCheck } from "@/components/auth/password-meter";
 import { ui } from "@/components/auth/split-layout";
 import { useT } from "@/lib/i18n/client";
@@ -22,9 +22,10 @@ function EyeToggle({ shown, onToggle, label }: { shown: boolean; onToggle: () =>
 /**
  * New password + confirm, with a strength bar, a live rule checklist and a show/hide toggle.
  * Same rules as the server (lib/auth/password-rules.ts). `onValid` reports whether both fields are acceptable.
+ * `signup`: only "at least 6 characters" (SIGNUP_MIN_LENGTH), and the strength bar / checklist is off.
  */
-export function PasswordFields({ email, tried, serverErrors, idPrefix = "pw", onValid }: {
-  email: string; tried: boolean; serverErrors?: { password?: string[]; confirm?: string[] }; idPrefix?: string; onValid?: (ok: boolean) => void;
+export function PasswordFields({ email, tried, serverErrors, idPrefix = "pw", onValid, signup = false }: {
+  email: string; tried: boolean; serverErrors?: { password?: string[]; confirm?: string[] }; idPrefix?: string; onValid?: (ok: boolean) => void; signup?: boolean;
 }) {
   const t = useT();
   const [pw, setPw] = useState("");
@@ -33,11 +34,12 @@ export function PasswordFields({ email, tried, serverErrors, idPrefix = "pw", on
   const [show2, setShow2] = useState(false);
 
   const policy = usePasswordPolicy();
-  const r = scorePassword(pw, email, undefined, policy);
+  const scored = scorePassword(pw, email, undefined, policy);
+  const r = signup ? { ...scored, ok: signupPasswordOk(pw), long: pw.length >= SIGNUP_MIN_LENGTH } : scored;
   const mismatch = pw2.length > 0 && pw2 !== pw;
   const matchOk = pw2.length > 0 && pw2 === pw;
   const flag = tried || !!serverErrors?.password;
-  const leak = useLeakCheck(pw, r.long && r.mixed && r.notCommon && r.notEmail);
+  const leak = useLeakCheck(pw, !signup && r.long && r.mixed && r.notCommon && r.notEmail);
   const pwBad = (flag && !r.ok) || leak === "leaked" || !!serverErrors?.password;
   const confirmBad = mismatch || !!serverErrors?.confirm || (tried && pw2 !== pw);
   const valid = r.ok && pw === pw2 && leak !== "leaked" && leak !== "checking";
@@ -46,7 +48,7 @@ export function PasswordFields({ email, tried, serverErrors, idPrefix = "pw", on
   return (
     <>
       <div className="mt-3.5 flex flex-col gap-1.5">
-        <FieldLabel htmlFor={`${idPrefix}-new`} required info={<>{policyText(policy).summary} {t("Don’t reuse a password from another site — we check it against known leaks.")}</>}>{t("Password")}</FieldLabel>
+        <FieldLabel htmlFor={`${idPrefix}-new`} required info={signup ? t("At least 6 characters.") : <>{policyText(policy).summary} {t("Don’t reuse a password from another site — we check it against known leaks.")}</>}>{t("Password")}</FieldLabel>
         <div className="flex overflow-hidden rounded-[4px] bg-white focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#2F5FD0]" style={{ border: pwBad ? "2px solid #B3261E" : r.ok && leak !== "checking" ? "2px solid #14603F" : "1px solid #B7BDC9" }}>
           <input
             id={`${idPrefix}-new`} name="password" aria-required="true" type={show ? "text" : "password"} autoComplete="new-password" maxLength={128}
@@ -56,7 +58,10 @@ export function PasswordFields({ email, tried, serverErrors, idPrefix = "pw", on
           />
           <EyeToggle shown={show} onToggle={() => setShow((v) => !v)} label={show ? t("Hide password") : t("Show password")} />
         </div>
-        <PasswordMeter id={`${idPrefix}-rules`} pw={pw} email={email} flag={flag} leak={leak} />
+        {signup ? (
+          // Strength bar and rule checklist hidden for sign-up: <PasswordMeter id={`${idPrefix}-rules`} pw={pw} email={email} flag={flag} leak={leak} />
+          <span id={`${idPrefix}-rules`} className="text-[13px]" style={{ color: flag && !r.ok ? "#B3261E" : "#4A5263" }}>{t("At least 6 characters.")}</span>
+        ) : <PasswordMeter id={`${idPrefix}-rules`} pw={pw} email={email} flag={flag} leak={leak} />}
         {serverErrors?.password ? <span id={`${idPrefix}-err`} role="alert" className={ui.error}>{t(serverErrors.password[0])}</span> : null}
       </div>
 

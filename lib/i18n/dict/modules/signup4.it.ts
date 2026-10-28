@@ -136,7 +136,7 @@ export const signup4_it: Record<string, string> = {
   "My events": "I miei eventi",
   "All followed": "Tutti i seguiti",
   "Choose where to submit.": "Scegli dove inviare.",
-  "Only events open for submission are shown; press Submit a paper on the one you want.": "Sono mostrati solo gli eventi aperti agli invii; premi Invia un articolo su quello che vuoi.",
+  "Only events open for submission are shown; press Submit a contribution on the one you want.": "Sono mostrati solo gli eventi aperti agli invii; premi Invia un contributo su quello che vuoi.",
   "Show all events": "Mostra tutti gli eventi",
   "Continue draft": "Continua la bozza",
   "Open my paper": "Apri il mio articolo",

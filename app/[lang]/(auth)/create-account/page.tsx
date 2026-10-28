@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getSiteFlags } from "@/lib/config/site-flags";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { countryOptions } from "@/lib/countries";
 import { Suspense } from "react";
 import { NavyAside, SetupSteps, SplitLayout, VenueBannerBox } from "@/components/auth/split-layout";
 import { CreateAccountForm } from "@/components/auth/create-account-form";
@@ -24,9 +25,9 @@ async function Banner({ searchParams }: { searchParams: Promise<Search> }) {
 
 async function Form({ searchParams }: { searchParams: Promise<Search> }) {
   const { next, venue } = await searchParams;
-  // No email code (site switch off): the password is chosen here and the account opens straight away.
+  // No email code (site switch off): the password is chosen on the next screen (step 2), then the account opens.
   const noCode = !(await getSiteFlags()).signupEmailCode;
-  return <CreateAccountForm next={next} venue={venue} withPassword={noCode || process.env.SIGNUP_PASSWORD_FIRST === "1"} noCode={noCode} />;
+  return <CreateAccountForm next={next} venue={venue} withPassword={process.env.SIGNUP_PASSWORD_FIRST === "1"} noCode={noCode} countries={countryOptions(await getLocale())} />;
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<Search> }) {

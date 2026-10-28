@@ -34,7 +34,7 @@ export function TypeForm({ venue, types, tracks, initialType, initialTrack, subm
           <span aria-hidden className="flex size-11 flex-none items-center justify-center rounded-[6px] bg-[#E6EDFC] font-mono text-[12px] font-semibold text-[#1F47A8]">{venue.badge}</span>
           <div className="min-w-0">
             <div className="font-semibold">{venue.acr}</div>
-            <div className="text-[14px] text-[#4A5263]">{venue.meta} · <Link href={`/events/${venue.slug}`} className="text-[#2F5FD0] underline">{t("Call for papers")}</Link></div>
+            <div className="text-[14px] text-[#4A5263]">{venue.meta} · <Link href={`/events/${venue.slug}`} className="text-[#2F5FD0] underline">{t("Call for Submissions")}</Link></div>
           </div>
         </div>
       </section>

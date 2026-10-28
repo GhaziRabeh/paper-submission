@@ -44,7 +44,7 @@ export function BasicsForm({ v, status, last, canEdit }: { v: BasicsValues; stat
               ))}
             </div>
           </fieldset>
-          <label className={`${ui.label} mt-5`}>{t("Call for papers")} <span className={ui.hint}>{t("Shown at the top of the public venue page. Plain text with bold and links.")}</span>
+          <label className={`${ui.label} mt-5`}>{t("Call for Submissions")} <span className={ui.hint}>{t("Shown at the top of the public venue page. Plain text with bold and links.")}</span>
             <textarea name="public_text" defaultValue={v.public_text} rows={8} className={ui.textarea} />
           </label>
         </section>

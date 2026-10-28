@@ -8,15 +8,16 @@ type StepState = "done" | "current" | "next";
  * `current` is 1–4; `texts` overrides the line under a step (e.g. the email, or "Confirmed 14:02 UTC").
  */
 export function signupSteps(t: T, current: 1 | 2 | 3 | 4, texts: Partial<Record<1 | 2 | 3 | 4, ReactNode>> = {}) {
-  const base: { title: string; text: ReactNode }[] = [
-    { title: t("Your name and email"), text: t("So co-authors and chairs can find you.") },
-    { title: t("Confirm your email"), text: t("A code by email, valid for 15 minutes.") },
-    { title: t("Choose a password"), text: t("Only after the code, so only you can set it.") },
-    { title: t("Your research profile"), text: t("Name on papers and affiliation — then you get your PIN.") },
+  // `n` is the step of the sign-up flow; the panel lists only those not hidden below (so 2 show: 1, 3).
+  const base: { n: 1 | 2 | 3 | 4; title: string; text: ReactNode }[] = [
+    { n: 1, title: t("Your name and email"), text: t("So co-authors and chairs can find you.") },
+    // Hidden from the panel for now (the code screen itself still works):
+    // { n: 2, title: t("Confirm your email"), text: t("A code by email, valid for 15 minutes.") },
+    { n: 3, title: t("Choose a password"), text: t("Only after the code, so only you can set it.") },
+    // { n: 4, title: t("Your research profile"), text: t("Name on papers and affiliation — then you get your PIN.") },
   ];
-  return base.map((s, i) => {
-    const n = (i + 1) as 1 | 2 | 3 | 4;
-    const state: StepState = n < current ? "done" : n === current ? "current" : "next";
-    return { title: s.title, text: texts[n] ?? s.text, state };
+  return base.map((s) => {
+    const state: StepState = s.n < current ? "done" : s.n === current ? "current" : "next";
+    return { title: s.title, text: texts[s.n] ?? s.text, state };
   });
 }

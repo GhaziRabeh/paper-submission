@@ -34,7 +34,7 @@ export function GoLiveForm({ slug, checks, committee, canOpen, live, liveSince, 
       <section className="rounded-[8px] border border-[#B9E0CB] bg-white p-[22px]">
         <span className={`${ui.tag} bg-[#E1F3EA] text-[#14603F]`}>● {t("Live")}{liveSince ? ` · ${liveSince}` : ""}</span>
         <h2 className={`${ui.h2} mt-3`}>{t("Submissions are open")}</h2>
-        <p className="mb-0 mt-2 text-[15px]">{t("The public page shows “Submit a paper”. Locked settings are now marked with a padlock in setup.")}</p>
+        <p className="mb-0 mt-2 text-[15px]">{t("The public page shows “Submit a contribution”. Locked settings are now marked with a padlock in setup.")}</p>
         {state.info ? <p className={`mb-0 mt-3 ${ui.ok}`}>{t(state.info)}</p> : null}
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/manage/${slug}`} className={ui.navy}>{t("Go to dashboard")}</Link>

@@ -9,6 +9,8 @@ import { resolveOnboarding, stepHref } from "@/lib/auth/onboarding";
 import { safeNext } from "@/lib/config/site";
 import { Reveal } from "@/components/motion/reveal";
 import { AuthSkeleton } from "@/components/skeletons";
+import { readPendingSignup } from "@/lib/auth/pending-signup";
+import Link from "@/components/site/link";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -21,7 +23,12 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
   const next = rawNext ? safeNext(rawNext) : undefined;
   const supabase = await createClient();
   const r = await resolveOnboarding(supabase, { sync: false });
-  if (!r.user) redirect(`/sign-in?next=${encodeURIComponent(`/create-account/password${next ? `?next=${encodeURIComponent(next)}` : ""}`)}`);
+  if (!r.user) {
+    // No-code sign-up: step 1 is kept in a signed cookie; the account is created here with the password.
+    const pending = await readPendingSignup();
+    if (pending) return <PendingPassword email={pending.email} first={pending.firstName} next={next} />;
+    redirect(`/sign-in?next=${encodeURIComponent(`/create-account/password${next ? `?next=${encodeURIComponent(next)}` : ""}`)}`);
+  }
   if (r.step !== "password") redirect(stepHref(r.step, next ?? "/welcome", { ref: r.ref, email: r.user.email }));
   const email = r.user.email ?? "";
   const meta = (r.user.user_metadata ?? {}) as { given_name?: string };
@@ -45,6 +52,27 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
       <h1 className={`mt-1.5 ${ui.h1}`}>{t("Choose a password")}</h1>
       <p className={`mt-2 ${ui.muted}`}>{t("Use something long you don't use anywhere else. A short phrase works well.")}</p>
       <PasswordStepForm email={email} next={next} />
+    </SplitLayout>
+  );
+}
+
+/** Step 2 of the no-code sign-up: choose the password; this creates the account and signs you in. */
+async function PendingPassword({ email, first, next }: { email: string; first: string; next?: string }) {
+  const t = await getT();
+  return (
+    <SplitLayout
+      width={440}
+      aside={
+        <NavyAside label={t("Account set-up progress")} kicker={t("Creating your account")} title={first ? t("Nearly done, {name}.", { name: first }) : t("Nearly done.")}>
+          <SetupSteps doneLabel={t("Done")} steps={signupSteps(t, 3, { 1: email })} />
+        </NavyAside>
+      }
+    >
+      <Link href="/create-account" className="text-[14px] text-[#2F5FD0] no-underline">{t("← Back")}</Link>
+      <p className={`mt-4 ${ui.kicker}`}>{t("Step 2 of 2")}</p>
+      <h1 className={`mt-1.5 ${ui.h1}`}>{t("Choose a password")}</h1>
+      <p className={`mt-2 ${ui.muted}`}>{t("For {email}.", { email })}</p>
+      <PasswordStepForm email={email} next={next} pending />
     </SplitLayout>
   );
 }

@@ -1,3 +1,4 @@
+import { OpenCallsAside } from "@/components/open-calls/panel";
 import Link from "@/components/site/link";
 import type { Metadata } from "next";
 import { getT } from "@/lib/i18n/server";
@@ -30,5 +31,5 @@ async function Inner({ searchParams }: { searchParams: Promise<{ venue?: string 
 
 /** AH02 — claim a paper a co-author entered with an old address; the corresponding author confirms. */
 export default function Page(props: { searchParams: Promise<{ venue?: string }> }) {
-  return <HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner {...props} /></Reveal></HelpPage>;
+  return <><HelpPage><Reveal fallback={<AccountHelpSkeleton />}><Inner {...props} /></Reveal></HelpPage><OpenCallsAside /></>;
 }

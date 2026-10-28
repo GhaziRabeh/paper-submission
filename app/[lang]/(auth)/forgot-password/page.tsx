@@ -6,6 +6,7 @@ import { getT } from "@/lib/i18n/server";
 import { NavyAside, SetupSteps, SplitLayout, ui } from "@/components/auth/split-layout";
 import { ForgotForm } from "@/components/reset/forgot-form";
 import { ResetShield } from "@/components/reset/reset-shield";
+import { OpenCallsAside } from "@/components/open-calls/panel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -21,6 +22,8 @@ async function Prefilled({ searchParams }: { searchParams: Promise<{ email?: str
 export default async function Page({ searchParams }: { searchParams: Promise<{ email?: string }> }) {
   const t = await getT();
   return (
+    <>
+    {/* The reset-steps panel stays off (showAside={false}); the open calls take the right-hand half instead. */}
     <SplitLayout showAside={false}
       aside={
         <NavyAside label={t("Password reset progress")} kicker={t("Resetting your password")} title={t("Locked out? Let’s get you back in.")}>
@@ -42,5 +45,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       <p className={`mt-2.5 ${ui.muted}`}>{t("Tell us how you sign in. We'll email a reset code (and a link) to your account email.")}</p>
       <Suspense fallback={<AuthFormSkeleton />}><Prefilled searchParams={searchParams} /></Suspense>
     </SplitLayout>
+    <OpenCallsAside />
+    </>
   );
 }

@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
+  // `next dev` only: lets a Cloudflare quick tunnel (cloudflared tunnel --url http://localhost:3000) load the dev assets.
+  allowedDevOrigins: ["*.trycloudflare.com"],
   // Going back to a page seen in the last 30 s reuses it in the browser (instant back/forward between
   // workspace pages). Every save calls revalidatePath, which clears this cache, so edits always show.
   experimental: { staleTimes: { dynamic: 30 } },

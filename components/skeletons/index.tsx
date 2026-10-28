@@ -85,6 +85,7 @@ export async function DirectorySkeleton() {
               <Search size={18} strokeWidth={1.75} color="#4A5263" className="flex-none" aria-hidden />
               <span className="truncate">{t("Acronym, name, topic, society or city — e.g. CDC 2027, robotics, IFAC")}</span>
             </div>
+            {/* Field chips and view tabs hidden for now (see components/venues/directory.tsx).
             <div className="mt-3.5 flex flex-wrap gap-2">
               {["All fields", "Control", "Robotics", "Ocean engineering", "Systems & decision"].map((l, i) => (
                 <span key={l} className="inline-flex h-[34px] items-center rounded-full px-3.5 text-[13px] font-semibold" style={{ background: i ? "transparent" : "#F2A93B", color: i ? "#D6DCEA" : "#0E1B3D", border: `1px solid ${i ? "#2A3C6E" : "#F2A93B"}` }}>{t(l)}</span>
@@ -95,6 +96,8 @@ export async function DirectorySkeleton() {
                 <span key={l} className="flex h-[42px] flex-none items-center px-4 text-[14px] font-semibold" style={{ color: i ? "#B9C3DA" : "#F5F6F3", borderBottom: `3px solid ${i ? "transparent" : "#F2A93B"}` }}>{t(l)}</span>
               ))}
             </div>
+            */}
+            <div className="h-8" />
           </div>
         </section>
         <div className="mx-auto box-border flex w-full max-w-[1280px] flex-col items-start gap-8 px-5 pb-14 pt-7 sm:px-8 lg:flex-row">

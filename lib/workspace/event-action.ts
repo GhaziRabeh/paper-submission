@@ -34,5 +34,5 @@ export const STAGE_TONE: Record<Stage, [string, string]> = {
 
 /** Submit: here, or on the outside site the organizers set (Setup › Basics › "Submissions on another site"). */
 export function submitAction(slug: string, submitUrl?: string | null): { label: string; href: string; external?: boolean } {
-  return submitUrl && /^https:\/\//.test(submitUrl) ? { label: "Submit a paper", href: submitUrl, external: true } : { label: "Submit a paper", href: `/submit/${slug}` };
+  return submitUrl && /^https:\/\//.test(submitUrl) ? { label: "Submit a contribution", href: submitUrl, external: true } : { label: "Submit a contribution", href: `/submit/${slug}` };
 }
