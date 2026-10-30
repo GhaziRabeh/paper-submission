@@ -36,7 +36,7 @@ export function InstallPrompt() {
     <aside aria-label={t("Install Plenary")} className="consent-in vt-install fixed bottom-5 right-5 z-[85] w-[min(360px,calc(100vw-40px))] rounded-[10px] border border-[#DADDE3] bg-white p-4 text-[14px] text-[#121826] shadow-[0_12px_40px_rgba(14,27,61,0.18)]">
       <div className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- tiny static icon */}
-        <img src="/icons/icon-192.png" alt="" width={40} height={40} className="flex-none rounded-[9px]" />
+        <img src="/icons/hp-icon-192.png" alt="" width={40} height={40} className="flex-none rounded-[9px]" />
         <div className="min-w-0">
           <div className="font-semibold">{t("Install Plenary")}</div>
           <p className="mb-0 mt-0.5 text-[13px] text-[#4A5263]">

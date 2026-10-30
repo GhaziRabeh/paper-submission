@@ -48,12 +48,25 @@ export type DirectoryVenue = {
 /** Focus point of a cover image (which part stays visible in every crop). */
 export type CoverFocus = "top-left" | "top" | "top-right" | "left" | "center" | "right" | "bottom-left" | "bottom" | "bottom-right";
 /** Cover image, stored in venues.details.cover: an uploaded file (path in 'venue-media') or a licensed external URL. */
-export type VenueCover = { path?: string | null; url?: string | null; alt?: string | null; credit?: string | null; creditUrl?: string | null; focus?: CoverFocus | null };
+export type VenueCover = { path?: string | null; url?: string | null; alt?: string | null; credit?: string | null; creditUrl?: string | null; focus?: CoverFocus | null; /** "contain": a low-resolution banner (PaperCept thumbnail), shown whole and stretched taller; "banner": a sharp banner from the event's own site, shown whole at its own shape. */ fit?: "cover" | "contain" | "banner" | null; /** A photo for the event page header when the cover itself is a banner (shown on the cards). */ hero?: string | null };
 
 export type VenueDetails = {
   cfp?: string;
   topics?: string[];
-  types?: { name: string; note?: string; length?: string; review?: string }[];
+  /** stage / opensAt: from submission_types.stage and opens_at (the event page's "How to submit" table). */
+  types?: { name: string; note?: string; length?: string; review?: string; stage?: "first" | "final"; opensAt?: string }[];
+  /**
+   * The "How to submit" table as the organizers publish it (venues.details.schedule): rows by stage, first =
+   * First submissions (new papers, proposals), final = Final submissions (final versions). `type` = the submission
+   * type a first-stage row starts. Dates are ISO instants, shown as the calendar day in `time_zone`.
+   */
+  schedule?: {
+    time_zone?: string; rows: { stage: "first" | "final"; label: string; type?: string; opens?: string; deadline?: string }[];
+    /** The organizers' text above the table (PaperCept "Submit a contribution"): intro lines, titled notes, a footnote. */
+    intro?: string[]; notes?: { title: string; text: string }[]; footnote?: string;
+    /** The organizers' "Information about <event>" box, when they wrote one: paragraphs and bulleted lists. */
+    info?: { title: string; updated?: string; blocks: ({ text: string } | { list: string[] })[] };
+  };
   policies?: { title: string; text: string; tag?: string }[];
   publication?: { proceedings?: string; copyright?: string; journal?: string };
   organizers?: { role: string; name: string; org?: string; topic?: string }[];

@@ -11,7 +11,8 @@ export function WizardLayout({ header, band, rail, children, aside }: { header: 
       {band}
       <div className="mx-auto box-border flex w-full max-w-[1280px] flex-col gap-6 px-5 pb-16 pt-7 sm:px-8 lg:flex-row lg:items-start lg:gap-8">
         {rail}
-        <main className="w-full min-w-0 lg:max-w-[680px] lg:flex-auto">{children}</main>
+        {/* 680 px next to a right column; without one (e.g. Details) the form uses the full width. */}
+        <main className={`w-full min-w-0 lg:flex-auto ${aside ? "lg:max-w-[680px]" : ""}`}>{children}</main>
         {aside ? <aside className="flex w-full flex-col gap-4 lg:w-[300px] lg:flex-none">{aside}</aside> : null}
       </div>
     </div>

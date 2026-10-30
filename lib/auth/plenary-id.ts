@@ -2,10 +2,10 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { expiresIn, sign, signingReady } from "@/lib/auth/signing";
 
-/** PIN: "1024", "PIN 1024", "#1024" → "1024" (a number from 1000 up, 4 to 9 digits); anything else → null. */
+/** PIN: "10024", "PIN 10024", "#10024" → "10024" (a number from 10000 up, 5 to 9 digits); anything else → null. */
 export function normalizePlenaryId(raw: string): string | null {
   const t = (raw || "").trim().replace(/^(pin)?[\s:#-]*/i, "");
-  return /^[1-9]\d{3,8}$/.test(t) ? t : null;
+  return /^[1-9]\d{4,8}$/.test(t) ? t : null;
 }
 
 export const plenaryIdSignIn = () => signingReady();

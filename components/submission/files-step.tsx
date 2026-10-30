@@ -2,7 +2,7 @@
 
 import Link from "@/components/site/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { continueFromFiles, fileUrl, finishUpload, removeFile, type ActionState } from "@/lib/submission/actions";
 import { card, ghostBtn, h2, primaryBtn } from "@/components/submission/shell";
@@ -24,7 +24,7 @@ const mb = (n: number) => `${(n / 1048576).toFixed(1)} MB`;
 const ext = (n: string) => (n.split(".").pop() ?? "").toUpperCase().slice(0, 4);
 const ICON = { ok: ["✓", "#E1F3EA", "#14603F"], warn: ["!", "#FBEFDD", "#7A4508"], fail: ["×", "#FDECEA", "#B3261E"] } as const;
 
-export function FilesStep({ id, files, typeLine, canContinue }: { id: string; files: SubFile[]; typeLine: string; canContinue: boolean }) {
+export function FilesStep({ id, files, typeLine, canContinue, guide }: { id: string; files: SubFile[]; typeLine: string; canContinue: boolean; guide?: ReactNode }) {
   const router = useRouter();
   const t = useT();
   const [state, action, pending] = useActionState<ActionState, FormData>(continueFromFiles, {});
@@ -65,7 +65,21 @@ export function FilesStep({ id, files, typeLine, canContinue }: { id: string; fi
 
   return (
     <>
-      <section className={card}>
+      {/* File Upload Section (after PaperCept's), first on the page; worded for what this site does: a PDF, checked on upload. */}
+      <section className={card} aria-labelledby="sb5-info">
+        <p className="m-0 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#4A5263]">{t("Section")}</p>
+        <h2 id="sb5-info" className={`${h2} mt-1`}>{t("File Upload Section")}</h2>
+        <div className="mt-3 flex flex-col gap-2.5 text-[15px] leading-[1.55] text-[#121826]">
+          <p className="m-0"><strong>{t("Compliant pdf.")}</strong> {t("Upload your conference paper as a PDF. It is checked as soon as you upload it — paper size, embedded fonts, margins and page count — and any problem is shown with its page number, so you can fix it before you submit. Word and LaTeX files aren't converted here: export your paper to PDF first.")}</p>
+          <p className="m-0"><strong>{t("Manuscript compliance.")}</strong> {t("Besides pdf compliance the conference and publisher impose additional requirements on the manuscript, such as the number of pages, paper size, text margins and file size. Be sure to use the Word or LaTeX template provided by the conference and check out the submission requirements on the conference website.")}</p>
+          <p className="m-0"><strong>{t("Important:")}</strong> {t("Please make sure that the name of any file that you upload only contains standard ASCII characters (letters A–Z, digits, hyphens and underscores).")}</p>
+        </div>
+        <p role="note" className="m-0 mt-3 rounded-[6px] border border-[#F1D29A] bg-[#FFF6E6] px-3 py-2 text-[14px] text-[#3B2A07]">
+          <strong>{t("Warning:")}</strong> {t("Don't use the browser Back button during the submission — use “← Back” at the bottom of the page instead.")}
+        </p>
+      </section>
+
+      <section className={`${card} mt-6`}>
         <h2 className={h2}>{t("Paper PDF")}</h2>
         <p className="mt-1 text-[#4A5263]">{typeLine} · {t("A4 or US Letter · fonts embedded · max {max} MB.", { max: MAX.paper })}</p>
         <input ref={paperInput} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label={t("Choose paper PDF")} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f, "paper"); }} />
@@ -102,6 +116,7 @@ export function FilesStep({ id, files, typeLine, canContinue }: { id: string; fi
                 </div>
               </div>
             </div>
+            {/* Full check list (page size, length, fonts, margins, file) hidden for now:
             <ul className="m-0 mt-5 list-none border-t border-[#EEF0EC] p-0">
               {items.map((it) => {
                 const [g, bg, ink] = ICON[it.level];
@@ -112,10 +127,26 @@ export function FilesStep({ id, files, typeLine, canContinue }: { id: string; fi
                   </li>
                 );
               })}
-            </ul>
+            </ul> */}
+            {/* Page size and Length always; any other check only when it fails or warns (so the author sees what to fix). */}
+            {items.length ? (
+              <ul className="m-0 mt-5 list-none border-t border-[#EEF0EC] p-0">
+                {items.filter((it) => it.key === "size" || it.key === "length" || it.level !== "ok").map((it) => {
+                  const [g, bg, ink] = ICON[it.level];
+                  return (
+                    <li key={it.key} className="flex gap-3 border-b border-[#EEF0EC] py-3">
+                      <span aria-hidden className="flex size-[22px] flex-none items-center justify-center rounded-full text-[12px] font-bold" style={{ background: bg, color: ink }}>{g}</span>
+                      <span><span className="font-semibold">{t(it.label)}</span> · {it.valueI18n ? t(it.valueI18n.key, it.valueI18n.vars) : t(it.value)}<span className="block text-[14px]" style={{ color: it.level === "ok" ? "#4A5263" : ink }}>{it.i18n ? t(it.i18n.key, it.i18n.vars) : t(it.detail)}</span></span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </>
         )}
         {error ? <p role="alert" className="mt-3 rounded-[6px] border border-[#F3C3BE] bg-[#FDECEA] px-3 py-2 text-[14px] text-[#5C1A15]">{error}</p> : null}
+        {/* Guide from the page: page budget and fixing common problems. */}
+        {guide}
       </section>
 
       <section className={`${card} mt-6`}>
@@ -161,10 +192,10 @@ export function FilesStep({ id, files, typeLine, canContinue }: { id: string; fi
         {state.error ? <p role="alert" className="mt-4 rounded-[6px] border border-[#F3C3BE] bg-[#FDECEA] px-3 py-2 text-[14px] text-[#5C1A15]">{t(state.error)}</p> : null}
         <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-[#DADDE3] pt-6">
           <div className="flex gap-2">
-            <Link href={`/submissions/${id}/keywords`} className={ghostBtn}>{t("← Back")}</Link>
+            <Link href={`/submissions/${id}/authors`} className={ghostBtn}>{t("← Back")}</Link>
             <button type="submit" name="intent" value="exit" className={`${ghostBtn} hidden sm:inline-flex`}>{t("Save and exit")}</button>
           </div>
-          <button type="submit" name="intent" value="next" disabled={pending || !canContinue || !!busy} className={primaryBtn}>{pending ? t("Saving…") : canContinue ? t("Continue to conflicts →") : t("Fix the PDF to continue")}</button>
+          <button type="submit" name="intent" value="next" disabled={pending || !canContinue || !!busy} className={primaryBtn}>{pending ? t("Saving…") : canContinue ? t("Continue to review →") : t("Fix the PDF to continue")}</button>
         </div>
       </form>
     </>

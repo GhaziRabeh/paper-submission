@@ -20,7 +20,8 @@ export function CodeBoxes({ name = "code", length = 6, invalid = false, disabled
   function set(next: string[], nextFocus?: number) {
     setDigits(next);
     if (nextFocus !== undefined) focus(nextFocus);
-    if (next.every(Boolean)) onComplete?.(next.join(""));
+    // After React writes the last digit into the hidden field, or the caller would submit the code without it.
+    if (next.every(Boolean)) setTimeout(() => onComplete?.(next.join("")), 0);
   }
 
   return (

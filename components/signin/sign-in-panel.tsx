@@ -64,6 +64,12 @@ const ERRORS: Record<string, string> = {
   oauth_no_email: "That account didn’t share an email address. Sign in another way.",
   provider_off: "That sign-in option isn’t available yet. Sign in another way.",
   oauth: "That sign-in didn’t finish. Try again, or sign in another way.",
+  // After "Create account" (no email code): the new account signs in here.
+  account_created: "Your account is ready. Sign in with your email and password.",
+  // After "Forgot password": the new password is saved and the person signs in with it here.
+  password_reset: "Your password has been changed. Sign in with your new password.",
+  // An invited co-author has just set their password.
+  password_set: "Your password is set. Sign in with your email and your new password.",
 };
 const ALL_METHODS: SignInMethods = { password: true, passkey: false, orcid: true, institution: false, google: false };
 
@@ -86,7 +92,10 @@ export function SignInPanel({ next, senderDomain = "[sender domain]", initialIde
 
   // The code step shows when the current tab's action just sent a code (until "Use a different email").
   const [dismissed, setDismissed] = useState<SignInState | null>(null);
-  const sent = tab === "signin" && codeState.step === "sent" && codeState !== dismissed ? codeState : null;
+  // Two-step by email (SIGNIN_TWO_STEP_EMAIL=on): the right password also leads to the code step.
+  const sent = tab !== "signin" ? null
+    : codeState.step === "sent" && codeState !== dismissed ? codeState
+    : pwState.step === "sent" && pwState !== dismissed ? pwState : null;
 
   const d = detectIdentifier(identifier);
   const tone = toneStyle[d.tone];
@@ -110,7 +119,8 @@ export function SignInPanel({ next, senderDomain = "[sender domain]", initialIde
       ) : tab === "signin" ? (
         <>
           <h1 className={`mt-7 ${H1}`}>{picked ? t("Hello again, {name}", { name: picked.name.split(" ")[0] }) : t("Welcome back")}</h1>
-          <p className={`mt-2 ${MUTED}`}>{picked && !picked.id ? t("Enter the full email for {email}.", { email: picked.email }) : t("One account for submitting, reviewing and chairing — at every venue.")}</p>
+          {/* The tagline "One account for submitting, reviewing and chairing — at every venue." is hidden for now. */}
+          {picked && !picked.id ? <p className={`mt-2 ${MUTED}`}>{t("Enter the full email for {email}.", { email: picked.email })}</p> : null}
           {accounts.length > 0 ? (
             <button type="button" onClick={() => { setChooserDone(false); setPicked(null); setIdentifier(""); }} className={`mt-1 min-h-6 border-0 bg-transparent p-0 text-[14px] ${LINK}`}>{picked ? t("Not you? Choose another account") : t("Choose an account on this device")}</button>
           ) : null}
@@ -126,7 +136,7 @@ export function SignInPanel({ next, senderDomain = "[sender domain]", initialIde
                 <span aria-hidden className="flex size-7 flex-none items-center justify-center rounded-[4px] font-mono text-[11px] font-semibold" style={{ background: tone.iconBg, color: tone.iconInk }}>{d.icon}</span>
                 <input
                   id="pr-id" name="identifier" type="text" autoComplete="username webauthn" autoCapitalize="none" spellCheck={false}
-                  placeholder="name@uni.edu · 1024 · jdoe"
+                  placeholder="name@uni.edu · 10024 · jdoe"
                   value={identifier} onChange={(e) => setIdentifier(e.target.value)}
                   aria-describedby="pr-id-hint pr-id-err" aria-invalid={idErrors?.length ? true : undefined}
                   className="h-10 min-w-0 flex-auto border-0 bg-transparent text-[16px] text-[#121826] outline-none"
@@ -164,16 +174,16 @@ export function SignInPanel({ next, senderDomain = "[sender domain]", initialIde
           </form>
 
           {/* Sign-in code by email: switchable (Admin › Venues › Public site and sign-in). */}
-          {codeSignIn && methods.password ? (
+          {/* {codeSignIn && methods.password ? (
             <form action={codeAction} className="mt-2.5">
               <input type="hidden" name="identifier" value={identifier} />
               <input type="hidden" name="next" value={next ?? ""} />
               <button type="submit" disabled={codePending} className={`h-10 w-full text-[13px] ${SECONDARY}`}><MailIcon />{codePending ? t("Sending…") : t("Email me a sign-in code instead")}</button>
             </form>
-          ) : null}
+          ) : null} */}
 
           <OtherWays methods={methods} next={next} identifier={identifier} onMessage={setSoon} />
-          <p className={`mt-5 text-[14px] ${MUTED}`}>{t("Used PaperCept before?")} <Link href="/contact?topic=import" className={LINK}>{t("Bring your history")}</Link></p>
+          {/* "Used PaperCept before? Bring your history" hidden for now. <p className={`mt-5 text-[14px] ${MUTED}`}>{t("Used PaperCept before?")} <Link href="/contact?topic=import" className={LINK}>{t("Bring your history")}</Link></p> */}
         </>
       ) : null}
     </div>
@@ -189,10 +199,12 @@ function CodeStep({ state, next, onBack, senderDomain }: { state: SignInState; n
   const lead = byEmail ? t("We sent a link and a code to") : t("We sent a link and a code to your account email");
   return (
     <>
-      <p className="mt-7 font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-[#14603F]">{t("Link sent")}</p>
+      <p className="mt-7 font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-[#14603F]">{state.twoStep ? t("Step 2 of 2") : t("Link sent")}</p>
       <h1 className={`mt-2.5 ${H1}`}>{t("Check your inbox")}</h1>
       <p className={`mt-2.5 ${MUTED}`}>{lead} <strong className={INK}>{state.sentTo}</strong>. {t("It expires in 15 minutes. On another device? Enter the code from the same email.")}</p>
       {state.notice ? <p role="status" className="mt-4 rounded-[6px] border border-[#F1D29A] bg-[#FFF6E6] px-3.5 py-2.5 text-[14px] text-[#3B2A07]">{t(state.notice)}</p> : null}
+      {/* Errors from the code check that aren't about the code itself (timed out, account locked…). */}
+      {vState.message && vState.message !== state.message ? <Banner>{t(vState.message)}</Banner> : null}
       <form ref={formRef} action={vAction} noValidate>
         <input type="hidden" name="email" value={state.email ?? ""} />
         <input type="hidden" name="next" value={next ?? ""} />

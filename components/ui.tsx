@@ -1,12 +1,13 @@
+import Image from "next/image";
 import Link from "@/components/site/link";
 import type { ComponentProps, ReactNode } from "react";
-import { BrandName } from "@/lib/i18n/client";
+import { BRAND_LOGO_ALT } from "@/lib/config/brand-logo";
 
+/** The Hyper Papers logo: white + saffron on dark backgrounds (`light`), navy + saffron otherwise. */
 export function Brand({ light = false }: { light?: boolean }) {
   return (
-    <Link href="/" className={`inline-flex items-center gap-2 font-serif text-xl ${light ? "text-white" : "text-navy"}`}>
-      <span aria-hidden className="inline-block size-3 rounded-full bg-saffron" />
-      <BrandName />
+    <Link href="/" className="inline-flex items-center no-underline">
+      <Image src={light ? "/logo/hyper-papers-on-dark.png" : "/logo/hyper-papers-on-light.png"} alt={BRAND_LOGO_ALT} width={115} height={32} className="h-8 w-auto" />
     </Link>
   );
 }

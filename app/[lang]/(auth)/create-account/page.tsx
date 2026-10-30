@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return { title: t("Create account") };
 }
-type Search = { next?: string; venue?: string };
+type Search = { next?: string; venue?: string; email?: string };
 
 async function Banner({ searchParams }: { searchParams: Promise<Search> }) {
   const { venue } = await searchParams;
@@ -24,16 +24,16 @@ async function Banner({ searchParams }: { searchParams: Promise<Search> }) {
 }
 
 async function Form({ searchParams }: { searchParams: Promise<Search> }) {
-  const { next, venue } = await searchParams;
+  const { next, venue, email } = await searchParams;
   // No email code (site switch off): the password is chosen on the next screen (step 2), then the account opens.
   const noCode = !(await getSiteFlags()).signupEmailCode;
-  return <CreateAccountForm next={next} venue={venue} withPassword={process.env.SIGNUP_PASSWORD_FIRST === "1"} noCode={noCode} countries={countryOptions(await getLocale())} />;
+  return <CreateAccountForm next={next} venue={venue} email={typeof email === "string" ? email.slice(0, 254) : undefined} withPassword={process.env.SIGNUP_PASSWORD_FIRST === "1"} noCode={noCode} countries={countryOptions(await getLocale())} />;
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<Search> }) {
   const t = await getT();
   return (
-    <SplitLayout
+    <SplitLayout showAside={false}
       banner={<Suspense fallback={null}><Banner searchParams={searchParams} /></Suspense>}
       aside={
         <NavyAside label={t("What happens next")} kicker={t("New to Plenary")} title={t("One account for every venue you’ll ever submit to.")}>

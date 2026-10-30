@@ -15,7 +15,7 @@ const POS: Record<CoverFocus, string> = {
 export function coverSrc(c: Cover | null | undefined): string | null {
   if (!c) return null;
   if (c.path) return mediaUrl(c.path);
-  if (c.url && /^https:\/\//.test(c.url)) return c.url;
+  if (c.url && /^(https:\/\/|\/venue-covers\/)/.test(c.url)) return c.url;
   return null;
 }
 
@@ -62,6 +62,23 @@ export function FieldArt({ field }: { field: Field }) {
 export function VenueCoverImage({ cover, field, alt, priority = false }: { cover: Cover | null | undefined; field: Field; alt: string; priority?: boolean }) {
   const src = coverSrc(cover);
   const [a, b] = BG[(field ?? "systems").toLowerCase()] ?? BG.systems;
+  if (src && cover?.fit === "banner") {
+    return (
+      <span className="absolute inset-0 flex items-center bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element -- organizer banners from their own sites; sizes vary per venue */}
+        <img src={src} alt={cover?.alt || alt} loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : "auto"} className="size-full object-contain" />
+      </span>
+    );
+  }
+  if (src && cover?.fit === "contain") {
+    return (
+      // Banners are thin strips (468 × 60): stretched to twice their height so the text reads at card size.
+      <span className="absolute inset-0 flex items-center bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element -- organizer banners from their own hosts; sizes vary per venue */}
+        <img src={src} alt={cover?.alt || alt} loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : "auto"} className="aspect-[468/120] max-h-full w-full object-fill" />
+      </span>
+    );
+  }
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element -- covers come from storage or licensed hosts; sizes vary per venue
     return <img src={src} alt={cover?.alt || alt} loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : "auto"}

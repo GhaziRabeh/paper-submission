@@ -18,15 +18,14 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     theme_color: "#0E1B3D",
     categories: ["productivity", "education"],
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+      { src: "/icons/hp-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/hp-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/hp-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/icons/hp-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "My submissions", short_name: "Submissions", url: "/workspace/submissions?source=pwa", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
-      { name: "Find a call for papers", short_name: "Venues", url: "/events?source=pwa", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "My submissions", short_name: "Submissions", url: "/workspace/submissions?source=pwa", icons: [{ src: "/icons/hp-icon-192.png", sizes: "192x192" }] },
+      { name: "Find a call for papers", short_name: "Venues", url: "/events?source=pwa", icons: [{ src: "/icons/hp-icon-192.png", sizes: "192x192" }] },
     ],
   };
 }

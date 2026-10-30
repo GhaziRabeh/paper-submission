@@ -45,7 +45,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
       <p className={`mt-2.5 ${ui.muted}`}>{t("Tell us how you sign in. We'll email a reset code (and a link) to your account email.")}</p>
       <Suspense fallback={<AuthFormSkeleton />}><Prefilled searchParams={searchParams} /></Suspense>
     </SplitLayout>
-    <OpenCallsAside />
+    {/* Open calls panel hidden: the form sits alone in the middle. <OpenCallsAside /> */}
     </>
   );
 }

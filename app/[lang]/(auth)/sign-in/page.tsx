@@ -51,6 +51,19 @@ async function Panel({ searchParams }: { searchParams: Promise<Search> }) {
     error={typeof error === "string" ? error.slice(0, 40) : undefined} />;
 }
 
+/**
+ * SIGNIN_DESIGN in .env picks the layout: default = form left + open calls on the right, empty = navy right half
+ * without its content, transparent = right half transparent (form stays on the left), center = form alone in the middle.
+ */
+function RightSide() {
+  switch (process.env.SIGNIN_DESIGN?.trim().toLowerCase()) {
+    case "empty": return <div className="auth-aside" aria-hidden />;
+    case "transparent": return <div className="auth-aside bg-transparent!" aria-hidden />;
+    case "center": return null;
+    default: return <OpenCallsAside />;
+  }
+}
+
 export default function Page({ searchParams }: { searchParams: Promise<Search> }) {
   return (
     <>
@@ -62,7 +75,7 @@ export default function Page({ searchParams }: { searchParams: Promise<Search> }
           <Panel searchParams={searchParams} />
         </Suspense>
       </main>
-      <OpenCallsAside />
+      <RightSide />
     </>
   );
 }

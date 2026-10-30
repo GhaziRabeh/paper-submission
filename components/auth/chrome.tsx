@@ -15,7 +15,7 @@ export function TopBar() {
       <Logo />
       <div className="flex items-center gap-4 text-[14px]">
         <LanguageSelect id="auth-lang" />
-        <Link href="/account-help" className="font-medium text-[#121826] no-underline">{t("Help")}</Link>
+        {/* Help link hidden for now. <Link href="/account-help" className="font-medium text-[#121826] no-underline">{t("Help")}</Link> */}
       </div>
     </div>
   );

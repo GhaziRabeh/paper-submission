@@ -64,10 +64,12 @@ export async function getVenue(slug: string): Promise<{ venue: DirectoryVenue; d
   const r = data as Row;
   // Paper types set up by the organizers (EM05); the public page prefers them over the seeded details.types.
   const { data: ty } = await createPublicClient().from("submission_types")
-    .select("name, description, pages, extra_pages, blind_override").eq("venue_id", r.id as string).eq("enabled", true).order("sort");
+    .select("name, description, pages, extra_pages, blind_override, stage, opens_at").eq("venue_id", r.id as string).eq("enabled", true).order("sort");
   const blind = (b: string | null) => (b === "double" ? "Double-blind" : b === "single" ? "Single-blind" : b === "open" ? "Open review" : null);
-  const dbTypes = ((ty ?? []) as { name: string; description: string | null; pages: number; extra_pages: number; blind_override: string | null }[]).map((x) => ({
+  const dbTypes = ((ty ?? []) as { name: string; description: string | null; pages: number; extra_pages: number; blind_override: string | null; stage: string | null; opens_at: string | null }[]).map((x) => ({
     name: x.name, note: x.description ?? undefined,
+    stage: x.stage === "first" || x.stage === "final" ? (x.stage as "first" | "final") : undefined,
+    opensAt: x.opens_at ?? undefined,
     length: `${x.pages}${x.extra_pages ? ` + ${x.extra_pages}` : ""} pages`,
     review: blind(x.blind_override) ?? (r.review_mode as string | null) ?? undefined,
   }));

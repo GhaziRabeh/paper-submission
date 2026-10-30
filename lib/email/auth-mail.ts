@@ -1,4 +1,5 @@
 import "server-only";
+import { absoluteUrl } from "@/lib/config/site";
 
 /*
  * Account emails (sign-in, sign-up, reset, invite, email change) sent by Plenary itself through Resend,
@@ -61,7 +62,7 @@ export function authMail(i: AuthMailInput) {
 <body style="margin:0;background:#EEF0EC;padding:28px 12px">
   <div style="display:none;max-height:0;overflow:hidden">${esc(c.lead)}</div>
   <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #DADDE3;border-radius:10px;padding:32px 28px;font:15px/1.55 ${SANS};color:#121826">
-    <p style="margin:0;font:22px/1 ${SERIF};color:#121826">Plenary</p>
+    <img src="${absoluteUrl("/logo/hyper-papers-on-light.png")}" alt="Plenary" width="144" height="40" style="display:block;height:40px;width:auto;border:0" />
     <p style="margin:24px 0 0;font:500 11px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${c.kickerInk}">${esc(c.kicker)}</p>
     <h1 style="margin:6px 0 0;font:400 30px/1.15 ${SERIF};color:#121826">${esc(title)}</h1>
     <p style="margin:8px 0 0;color:#4A5263">${esc(c.lead)}</p>

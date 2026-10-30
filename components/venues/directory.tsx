@@ -8,9 +8,10 @@ import { PublicHeader } from "@/components/venues/public-header";
 import dynamic from "next/dynamic";
 import { useT } from "@/lib/i18n/client";
 import { useClock, useFollows } from "@/components/venues/use-clock";
-import { FIELD_COLOR, FIELD_LABEL, FORMAT_LABEL, KIND_LABEL, type DirectoryVenue, type Field } from "@/lib/venues/types";
+import { useSummary } from "@/components/chrome/summary";
+import { FIELD_LABEL, FORMAT_LABEL, type DirectoryVenue, type Field } from "@/lib/venues/types";
 import { cityOf, fmtRange, statusOf, type Status } from "@/lib/venues/time";
-import { VenueCoverImage, hasRealCover } from "@/components/venues/cover";
+import { VenueCoverImage } from "@/components/venues/cover";
 import { STAGE_LABEL, STAGE_TONE, primaryAction, roleChips, submitAction, type MyEvent, type MyEvents } from "@/lib/workspace/event-action";
 import { EventMoreMenu, WebsiteButton } from "@/components/venues/event-actions";
 
@@ -19,7 +20,18 @@ type Win = "any" | "d7" | "d30" | "open";
 const VIEWS: [View, string][] = [["list", "List"], ["calendar", "Deadline calendar"], ["map", "Map"], ["past", "Past venues"]];
 const FIELDS: ["all" | Field, string][] = [["all", "All fields"], ["control", "Control"], ["robotics", "Robotics"], ["ocean", "Ocean engineering"], ["systems", "Systems & decision"]];
 const WINDOWS: [Win, string][] = [["any", "Any time"], ["d7", "Closes within 7 days"], ["d30", "Closes within 30 days"], ["open", "Open for submission now"]];
-const REGIONS = ["Europe", "Americas", "Asia–Pacific", "Africa & Middle East", "Online"];
+
+// Sidebar filters that .env can hide: NEXT_PUBLIC_FILTER_SOCIETY / _FORMAT / _INDEXED = show (default) or hide.
+const shownByEnv = (v: string | undefined) => v?.trim().toLowerCase() !== "hide";
+const SHOW_SOCIETY = shownByEnv(process.env.NEXT_PUBLIC_FILTER_SOCIETY);
+const SHOW_FORMAT = shownByEnv(process.env.NEXT_PUBLIC_FILTER_FORMAT);
+const SHOW_INDEXED = shownByEnv(process.env.NEXT_PUBLIC_FILTER_INDEXED);
+// NEXT_PUBLIC_DIRECTORY_SOURCES: comma-separated venues.imported_from values the list shows (e.g. "papercept"); empty = all.
+// Hidden events keep their pages; My events and Following still show them.
+const SOURCES = (process.env.NEXT_PUBLIC_DIRECTORY_SOURCES ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+const listed = (v: DirectoryVenue) => !SOURCES.length || SOURCES.includes((v.importedFrom ?? "").toLowerCase());
+// With every sidebar filter hidden the sidebar is dropped and the list spans the full width.
+const HAS_SIDEBAR = SHOW_SOCIETY || SHOW_FORMAT || SHOW_INDEXED;
 
 export type Row = DirectoryVenue & { st: Status; past: boolean };
 
@@ -84,16 +96,14 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- read once after hydration
   const [field, setField] = useSoftState<"all" | Field>("all");
   const [win, setWin] = useSoftState<Win>("any");
-  const [kinds, setKinds] = useSoftState<string[]>([]);
   const [socs, setSocs] = useSoftState<string[]>([]);
   const [formats, setFormats] = useSoftState<string[]>([]);
   const [indexes, setIndexes] = useSoftState<string[]>([]);
-  const [region, setRegion] = useSoftState("");
   const [sort, setSort] = useSoftState<"close" | "event" | "name">("close");
   const [followOnly, setFollowOnly] = useSoftState(false);
   // "New submission" opens this page as ?intent=submit: start on the events open for submission.
   useEffect(() => { if (intent) setWin("open"); }, [intent]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [shown, setShown] = useSoftState(20);
+  const [shown, setShown] = useSoftState(40);
   useEffect(() => {
     const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
     if (w.requestIdleCallback) { const id = w.requestIdleCallback(preloadTabs, { timeout: 3000 }); return () => w.cancelIdleCallback?.(id); }
@@ -129,18 +139,17 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
   const mineRows = rows.filter((r) => mine?.[r.slug]);
   const followRows = rows.filter((r) => (follows.loaded && follows.signedIn ? follows.followed.includes(r.id) : !!mine?.[r.slug]?.following));
   // My events and Following keep past events too (your papers there still matter); All open calls is current only.
-  const pool = scope === "mine" ? mineRows : scope === "following" ? followRows : current;
+  // All events: current ones first, then the ones already held (still findable; their cards say Done and open the page).
+  const pool = scope === "mine" ? mineRows : scope === "following" ? followRows : rows.filter(listed);
 
   const needle = q.trim().toLowerCase();
   const list = pool
     .filter((v) => {
       if (field !== "all" && v.field !== field) return false;
       if (needle && !`${v.acr} ${v.name} ${v.society ?? ""} ${v.location ?? ""} ${v.city ?? ""} ${v.country ?? ""} ${v.field ?? ""}`.toLowerCase().includes(needle)) return false;
-      if (kinds.length && !kinds.includes(v.kind)) return false;
       if (socs.length && !socs.includes(v.society ?? "")) return false;
       if (formats.length && !formats.includes(v.format ?? "")) return false;
       if (indexes.length && !indexes.some((x) => v.indexedIn.includes(x))) return false;
-      if (region && v.region !== region) return false;
       if (win === "d7" && v.st.days > 7) return false;
       if (win === "d30" && v.st.days > 30) return false;
       if (win === "open" && !["soon", "open", "later", "rolling"].includes(v.st.state)) return false;
@@ -148,22 +157,19 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
       if (followOnly && follows.signedIn && !follows.followed.includes(v.id)) return false;
       return true;
     })
-    .sort((a, b) => (sort === "name" ? a.acr.localeCompare(b.acr) : sort === "event" ? (a.startsOn ?? "9999").localeCompare(b.startsOn ?? "9999") : a.st.days - b.st.days));
+    .sort((a, b) => Number(a.past) - Number(b.past) || (sort === "name" ? a.acr.localeCompare(b.acr) : sort === "event" ? (a.startsOn ?? "9999").localeCompare(b.startsOn ?? "9999") : a.st.days - b.st.days));
 
   const count = (pred: (v: Row) => boolean) => current.filter(pred).length;
   const societies = [...new Set(current.map((v) => v.society).filter(Boolean) as string[])].sort();
   const indexList = [...new Set(current.flatMap((v) => v.indexedIn))].sort();
-  const kindList = (["conference", "workshop", "journal", "award"] as const).filter((k) => current.some((v) => v.kind === k));
 
   const chips: { label: string; remove: () => void }[] = [];
   if (field !== "all") chips.push({ label: t(FIELD_LABEL[field]), remove: () => setField("all") });
   if (win !== "any") chips.push({ label: t(WINDOWS.find(([k]) => k === win)![1]), remove: () => setWin("any") });
-  kinds.forEach((k) => chips.push({ label: t(KIND_LABEL[k as keyof typeof KIND_LABEL]), remove: () => setKinds((a) => a.filter((x) => x !== k)) }));
   socs.forEach((k) => chips.push({ label: k, remove: () => setSocs((a) => a.filter((x) => x !== k)) }));
   formats.forEach((k) => chips.push({ label: t(FORMAT_LABEL[k as keyof typeof FORMAT_LABEL]), remove: () => setFormats((a) => a.filter((x) => x !== k)) }));
   indexes.forEach((k) => chips.push({ label: k, remove: () => setIndexes((a) => a.filter((x) => x !== k)) }));
-  if (region) chips.push({ label: t(region), remove: () => setRegion("") });
-  const clearAll = () => { setQ(""); setField("all"); setWin("any"); setKinds([]); setSocs([]); setFormats([]); setIndexes([]); setRegion(""); setFollowOnly(false); };
+  const clearAll = () => { setQ(""); setField("all"); setWin("any"); setSocs([]); setFormats([]); setIndexes([]); setFollowOnly(false); };
 
   const pastRows = rows.filter((r) => r.past && (!needle || `${r.acr} ${r.name} ${r.bestPaper ?? ""}`.toLowerCase().includes(needle)) && (field === "all" || r.field === field));
   const mapCount = list.filter((v) => v.lat != null && v.lng != null).length;
@@ -178,7 +184,7 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
 
       {ws ? (
       <section className="border-b border-[#DADDE3] bg-white text-[#121826]">
-        <div className="mx-auto max-w-[1280px] px-5 pb-0 pt-7 sm:px-8">
+        <div className="mx-auto max-w-none px-5 pb-0 pt-7 sm:px-8">
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
               <p className="m-0 text-[13px] text-[#4A5263]">{t("Events")}</p>
@@ -195,10 +201,11 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
               className="h-10 min-w-0 flex-auto border-0 bg-transparent text-[15px] text-[#121826] outline-none" />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
+            {/* "Open for papers" chip hidden for now.
             <button type="button" aria-pressed={win === "open"} onClick={() => setWin(win === "open" ? "any" : "open")}
               className={`h-8 cursor-pointer rounded-full px-3 text-[13px] font-semibold ${win === "open" ? "border border-[#14603F] bg-[#14603F] text-white" : "border border-[#B9E0CB] bg-[#F3FAF6] text-[#14603F] hover:border-[#14603F]"}`}>
               {win === "open" ? "✓ " : ""}{t("Open for papers")}
-            </button>
+            </button> */}
             {/* Field chips hidden for now.
             <span aria-hidden className="mx-1 w-px self-stretch bg-[#DADDE3]" />
             {FIELDS.map(([k, label]) => {
@@ -225,7 +232,7 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
       </section>
       ) : (
       <section className="bg-[#0E1B3D] text-[#F5F6F3]">
-        <div className="mx-auto max-w-[1280px] px-5 pb-0 pt-10 sm:px-8">
+        <div className="mx-auto max-w-none px-5 pb-0 pt-10 sm:px-8">
           <p className="m-0 font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-[#F2A93B]">{t("Event directory")}</p>
           <h1 className="mt-2 font-serif text-[36px] font-[350] leading-[1.05] tracking-[-0.015em] sm:text-[48px]">{t("Find an event and submit your paper")}</h1>
           <p className="mt-2 text-[16px] text-[#B9C3DA]">
@@ -262,61 +269,40 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
       </section>
       )}
 
-      <div className={`mx-auto box-border flex w-full max-w-[1280px] flex-col items-start gap-8 px-5 pb-14 pt-7 sm:px-8 ${ws ? "xl:flex-row" : "lg:flex-row"}`}>
+      <div className={`mx-auto box-border flex w-full max-w-none flex-col items-start gap-8 px-5 pb-14 pt-7 sm:px-8 ${ws ? "xl:flex-row" : "lg:flex-row"}`}>
+        {HAS_SIDEBAR ? (
+        <>
         <button type="button" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen} aria-controls="v-filters"
           className={`flex h-10 w-full items-center justify-between rounded-[6px] border border-[#B7BDC9] bg-white px-3.5 text-[14px] font-semibold text-[#121826] ${ws ? "xl:hidden" : "lg:hidden"}`}>
           <span>{t("Filters")}{chips.length ? ` · ${chips.length}` : ""}</span><span aria-hidden>{filtersOpen ? "▴" : "▾"}</span>
         </button>
         <aside id="v-filters" aria-label={t("Filters")} className={`${filtersOpen ? "flex" : "hidden"} -mt-4 w-full flex-col gap-[22px] ${ws ? "xl:mt-0 xl:flex xl:w-[250px] xl:flex-none" : "lg:mt-0 lg:flex lg:w-[250px] lg:flex-none"}`}>
-          {follows.signedIn && !ws ? (
-            <button type="button" role="switch" aria-checked={followOnly} onClick={() => setFollowOnly((v) => !v)} className="flex items-center justify-between gap-2.5 rounded-[8px] border border-[#DADDE3] bg-white px-3 py-2.5 text-[14px] font-semibold text-[#121826]">
-              <span>{t("★ Following only")}</span>
-              <span aria-hidden className="relative h-5 w-[34px] rounded-full" style={{ background: followOnly ? "#18744F" : "#B7BDC9" }}><span className="absolute top-0.5 size-4 rounded-full bg-white" style={{ left: followOnly ? 16 : 2 }} /></span>
-            </button>
-          ) : null}
-          <div role="radiogroup" aria-label={t("Deadline")}>
-            <p className={kicker}>{t("Deadline")}</p>
-            {WINDOWS.map(([k, label]) => (
-              <button key={k} type="button" role="radio" aria-checked={win === k} onClick={() => setWin(k)} className="flex min-h-[30px] w-full items-center gap-2.5 border-0 bg-transparent p-0 text-left text-[14px] text-[#121826]">
-                <span aria-hidden className="box-border size-[18px] flex-none rounded-full bg-white" style={{ border: win === k ? "5px solid #0E1B3D" : "1.5px solid #B7BDC9" }} />{t(label)}
-              </button>
-            ))}
-          </div>
-          {kindList.length ? (
-            <div role="group" aria-label={t("Venue type")}><p className={kicker}>{t("Venue type")}</p>
-              {kindList.map((k) => <Check key={k} on={kinds.includes(k)} label={t(KIND_LABEL[k])} n={count((v) => v.kind === k)} onClick={() => setKinds((a) => toggleIn(a, k))} />)}
-            </div>
-          ) : null}
-          {societies.length ? (
+          {SHOW_SOCIETY && societies.length ? (
             <div role="group" aria-label={t("Society")}><p className={kicker}>{t("Society")}</p>
               {societies.map((s) => <Check key={s} on={socs.includes(s)} label={s} n={count((v) => v.society === s)} onClick={() => setSocs((a) => toggleIn(a, s))} />)}
             </div>
           ) : null}
-          <div role="group" aria-label={t("Format")}><p className={kicker}>{t("Format")}</p>
-            {(["in_person", "hybrid", "online"] as const).map((f) => <Check key={f} on={formats.includes(f)} label={t(FORMAT_LABEL[f])} n={count((v) => v.format === f)} onClick={() => setFormats((a) => toggleIn(a, f))} />)}
-          </div>
-          {indexList.length ? (
+          {SHOW_FORMAT ? (
+            <div role="group" aria-label={t("Format")}><p className={kicker}>{t("Format")}</p>
+              {(["in_person", "hybrid", "online"] as const).map((f) => <Check key={f} on={formats.includes(f)} label={t(FORMAT_LABEL[f])} n={count((v) => v.format === f)} onClick={() => setFormats((a) => toggleIn(a, f))} />)}
+            </div>
+          ) : null}
+          {SHOW_INDEXED && indexList.length ? (
             <div role="group" aria-label={t("Indexed in")}><p className={kicker}>{t("Proceedings indexed in")}</p>
               {indexList.map((x) => <Check key={x} on={indexes.includes(x)} label={x} n={count((v) => v.indexedIn.includes(x))} onClick={() => setIndexes((a) => toggleIn(a, x))} />)}
             </div>
           ) : null}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="v-region" className={`${kicker} mb-0`}>{t("Region")}</label>
-            <select id="v-region" value={region} onChange={(e) => setRegion(e.target.value)} className="h-10 rounded-[4px] border border-[#B7BDC9] bg-white px-2 text-[14px]">
-              <option value="">{t("Anywhere")}</option>
-              {REGIONS.map((r) => <option key={r} value={r}>{t(r)}</option>)}
-            </select>
-          </div>
-          {follows.loaded && !follows.signedIn ? (
-            <div className="rounded-[8px] border border-[#F1D29A] bg-[#FFF6E6] px-4 py-3.5 text-[14px] text-[#3B2A07]">
-              <div className="font-semibold">{t("Get deadline alerts")}</div>
-              <div className="mt-0.5">{t("Follow venues for reminders 14, 7 and 1 day before they close — and when a deadline moves.")}</div>
-              <Link href="/sign-in?next=/venues" className="mt-1.5 inline-block font-semibold text-[#7A4508]">{t("Sign in to follow →")}</Link>
-            </div>
-          ) : null}
         </aside>
+        </>
+        ) : null}
 
         <section aria-label={t("Results")} className="@container w-full min-w-0 flex-auto">
+          {follows.loaded && !follows.signedIn ? (
+            <div className="mb-3.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[8px] border border-[#F1D29A] bg-[#FFF6E6] px-4 py-3 text-[14px] text-[#3B2A07]">
+              <span><strong>{t("Get deadline alerts")}</strong> {t("Follow venues for reminders 14, 7 and 1 day before they close — and when a deadline moves.")}</span>
+              <Link href="/sign-in?next=/venues" className="font-semibold text-[#7A4508]">{t("Sign in to follow →")}</Link>
+            </div>
+          ) : null}
           {ws && intent ? (
             <div role="status" className="mb-3.5 flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-[#F1D29A] bg-[#FFF6E6] px-4 py-3 text-[14px] text-[#3B2A07]">
               <span><strong>{t("Choose where to submit.")}</strong> {t("Only events open for submission are shown; press Submit a contribution on the one you want.")}</span>
@@ -329,7 +315,13 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p role="status" className="m-0 text-[14px] text-[#4A5263]"><strong className="text-[#121826]">{countLine[0]}</strong> {countLine[1]}</p>
             {view === "list" ? (
-              <div className="flex items-center gap-2 text-[14px]">
+              <div className="flex flex-wrap items-center gap-2 text-[14px]">
+                {follows.signedIn && !ws ? (
+                  <button type="button" role="switch" aria-checked={followOnly} onClick={() => setFollowOnly((v) => !v)} className="me-2 flex h-9 items-center gap-2.5 rounded-[4px] border border-[#B7BDC9] bg-white px-3 text-[14px] font-semibold text-[#121826]">
+                    <span>{t("★ Following only")}</span>
+                    <span aria-hidden className="relative h-5 w-[34px] rounded-full" style={{ background: followOnly ? "#18744F" : "#B7BDC9" }}><span className="absolute top-0.5 size-4 rounded-full bg-white" style={{ left: followOnly ? 16 : 2 }} /></span>
+                  </button>
+                ) : null}
                 <label htmlFor="v-sort" className="text-[#4A5263]">{t("Sort by")}</label>
                 <select id="v-sort" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="h-9 rounded-[4px] border border-[#B7BDC9] bg-white px-2 text-[14px]">
                   <option value="close">{t("Closing soonest")}</option><option value="event">{t("Event date")}</option><option value="name">{t("Acronym A–Z")}</option>
@@ -383,35 +375,43 @@ export function Directory({ venues, generatedAt, ready, mine }: { venues: Direct
 
 function VenueCard({ v, following, onFollow, ws, mine, intent }: { v: Row; following: boolean; onFollow: () => void; ws?: boolean; mine?: MyEvent; intent?: boolean }) {
   const t = useT();
-  const [fbg, fink] = v.field ? FIELD_COLOR[v.field] : ["#EEF0EC", "#4A5263"];
+  const summary = useSummary();
+  const signedIn = !!ws || !!summary?.signedIn;
+  // const [fbg, fink] = v.field ? FIELD_COLOR[v.field] : ["#EEF0EC", "#4A5263"];
   const soon = v.st.state === "soon";
-  // At most three tags on a card (field + these two): review mode and page limit live on the event page.
-  const tags = [v.format ? t(FORMAT_LABEL[v.format]) : null, v.indexedIn.length ? v.indexedIn.slice(0, 2).join(" · ") : null].filter(Boolean) as string[];
+  // At most three tags on a card (field + these two), hidden for now: review mode and page limit live on the event page.
+  // const tags = [v.format ? t(FORMAT_LABEL[v.format]) : null, v.indexedIn.length ? v.indexedIn.slice(0, 2).join(" · ") : null].filter(Boolean) as string[];
   const where = v.kind === "journal" ? t("Online") : [v.city, v.country].filter(Boolean).join(", ") || v.location || "";
   const href = ws ? `/workspace/events/${v.slug}` : `/events/${v.slug}`;
   // One main action that adapts to the event: submit while the call is open (here or on the organizers' own site),
   // otherwise view the event; signed in, a draft or paper in progress comes first.
   const openCall = isOpenCall(v);
-  const act = ws ? (intent && openCall ? submitAction(v.slug, v.submitUrl) : primaryAction(v.slug, mine, openCall, v.submitUrl))
+  const act0 = ws ? (intent && openCall ? submitAction(v.slug, v.submitUrl) : primaryAction(v.slug, mine, openCall, v.submitUrl))
     : openCall ? submitAction(v.slug, v.submitUrl) : { label: "View event", href, external: false };
+  // "Submit a contribution" opens the event page at its submission table (types, dates, Submit / Closed), not the form.
+  const act = act0.label === "Submit a contribution" ? { label: act0.label, href: `${href}#types`, external: false } : act0;
   const roles = mine ? roleChips(mine.roles) : [];
+  // Visitors keep each button label on one line from 2xl; signed in, the shared row lets a long label wrap inside its button.
+  const oneLine = signedIn ? "" : "@6xl:h-10 @6xl:whitespace-nowrap";
   return (
-    <article className="flex flex-col gap-[18px] rounded-[8px] border border-[#DADDE3] bg-white p-4 @2xl:flex-row @2xl:items-start">
-      <Link href={href} aria-label={t("Open {venue}", { venue: v.acr })} className={`relative block w-full flex-none overflow-hidden rounded-[6px] bg-[#EEF0EC] no-underline @2xl:aspect-video @2xl:w-[200px] ${ws ? "aspect-[3/1]" : "aspect-video"}`}>
+    <article className="flex flex-col gap-[18px] rounded-[8px] border border-[#DADDE3] bg-white p-4 @6xl:flex-row @6xl:items-start">
+      <Link href={href} aria-label={t("Open {venue}", { venue: v.acr })} className={`relative block w-full flex-none overflow-hidden rounded-[6px] border border-[#EEF0EC] bg-[#EEF0EC] no-underline aspect-[4/1] @6xl:w-[480px] @6xl:self-center @7xl:w-[600px] @[96rem]:w-[760px]`}>
+        {/* Every cover in the same 4:1 box (the banners' shape), whatever the length of the card's text. */}
         <VenueCoverImage cover={v.cover} field={v.field} alt={t("Cover image of {venue}", { venue: v.acr })} />
-        <span className="absolute left-2 top-2 rounded-[2px] bg-white/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.04em] text-[#121826]">{v.society ?? v.acr.slice(0, 10)}</span>
-        {hasRealCover(v.cover) && v.cover?.credit ? <span className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-[11px] text-white/90 [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">{v.cover.credit}</span> : null}
+        {/* Cover photo credit hidden for now. {hasRealCover(v.cover) && v.cover?.credit ? <span className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-[11px] text-white/90 [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">{v.cover.credit}</span> : null} */}
       </Link>
-      <div className="min-w-0 flex-auto">
-        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1.5">
-          <h2 className="m-0 text-[22px] font-semibold leading-[1.2]"><Link href={href} className="text-[#121826] no-underline hover:underline">{v.acr}</Link></h2>
-          <span className="text-[14px] text-[#4A5263]">{v.name}</span>
-        </div>
+      {/* Title at the top, actions at the bottom, the description centred in the space between them. On phones the
+          column dissolves (contents) so the order is: title, description, deadline, then the actions in a 2 × 2 grid. */}
+      <div className="contents @6xl:flex @6xl:min-w-0 @6xl:flex-auto @6xl:flex-col @6xl:self-stretch">
+        <h2 className="m-0 text-[30px] font-semibold leading-[1.15]"><Link href={href} className="text-[#121826] no-underline hover:underline">{v.acr}</Link></h2>
+        <div className="-mt-3 flex flex-auto flex-col justify-center @6xl:mt-0 @6xl:py-3">
+        <p className="m-0 text-[15px] leading-[1.35] text-[#121826]">{v.name}</p>
         <div className="mt-1 text-[14px] text-[#4A5263]">{[fmtRange(v.startsOn, v.endsOn, t.intl, t, v.kind === "journal"), where, v.society ? t("by {society}", { society: v.society }) : null].filter(Boolean).join(" · ")}</div>
+        {/* Badges hidden for now (field, format, indexed in).
         <div className="mt-2 flex flex-wrap gap-1.5">
           {v.field ? <span className="rounded-[2px] px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em]" style={{ background: fbg, color: fink }}>{t(v.field === "ocean" ? "Ocean" : FIELD_LABEL[v.field])}</span> : null}
           {tags.map((tag) => <span key={tag} className="rounded-[2px] bg-[#EEF0EC] px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-[#4A5263]">{tag}</span>)}
-        </div>
+        </div> */}
         {v.accepting ? <div className="mt-2 text-[13px] text-[#4A5263]">{t("Accepting:")} {t(v.accepting)}</div> : null}
         {ws && (roles.length || mine?.papers.length) ? (
           <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#EEF0EC] pt-2.5 text-[12px]">
@@ -425,25 +425,20 @@ function VenueCard({ v, following, onFollow, ws, mine, intent }: { v: Row; follo
             {mine && mine.papers.length > 3 ? <span className="text-[#4A5263]">+{mine.papers.length - 3}</span> : null}
           </div>
         ) : null}
-      </div>
-      <div className="flex-none text-left @2xl:w-[280px] @2xl:text-right">
-        <div className="flex items-center gap-1.5 @2xl:justify-end">
-          {v.st.extended ? <span className="rounded-[2px] bg-[#E6EDFC] px-2 py-0.5 font-mono text-[11px] font-medium tracking-[0.04em] text-[#1F47A8]">{t("EXTENDED")}</span> : null}
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em]" style={{ color: soon ? "#A8600F" : "#4A5263" }}>{soon ? t("Closes soon · {what}", { what: t(v.st.label).toLowerCase() }) : t(v.st.label)}</span>
         </div>
-        <div className="mt-0.5 font-mono text-[22px] font-medium" style={{ color: soon ? "#A8600F" : v.st.state === "now" ? "#14603F" : "#121826" }}>{v.st.closes}</div>
-        <div className="text-[12px] text-[#4A5263]">{v.st.aoe}</div>
-        <div className="text-[12px] font-medium text-[#121826]">{v.st.local}</div>
-        {/* Actions in a 2 × 2 grid: every button the same width and height. */}
-        <div className="mt-2.5 grid auto-rows-fr grid-cols-2 gap-1.5">
+        {/* Actions in one row: Submit, Sign in, Official website, Contact organizers. */}
+        {/* Signed in (3 buttons, no Sign in; always on /workspace/events): one row at every width, the buttons sharing it
+            and a long label wrapping inside its button. Visitors (4 buttons): 2 × 2 on phones, one wrapping row above. */}
+        <div className={`order-last gap-2 @6xl:order-none @6xl:gap-2.5 ${signedIn ? "flex items-stretch *:min-w-0 *:flex-1" : "grid grid-cols-2 @6xl:flex @6xl:flex-wrap @6xl:items-center"}`}>
           {act.external ? (
-            <a href={act.href} target="_blank" rel="noopener noreferrer" className="flex min-h-[34px] w-full items-center justify-center py-1 text-center leading-tight gap-1.5 rounded-[4px] border border-[#F2A93B] bg-[#F2A93B] px-3 text-[13px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t(act.label)}<ExternalLink size={13} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a>
+            <a href={act.href} target="_blank" rel="noopener noreferrer" className={`inline-flex min-h-10 items-center justify-center py-1 text-center leading-tight ${oneLine} gap-1.5 rounded-[4px] border border-[#F2A93B] bg-[#F2A93B] px-4 text-[14px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]`}>{t(act.label)}<ExternalLink size={14} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a>
           ) : (
-            <Link href={act.href} className={`flex min-h-[34px] w-full items-center justify-center py-1 text-center leading-tight rounded-[4px] border px-3 text-[13px] font-semibold no-underline ${act.label === "View event" ? "border-[#0E1B3D] bg-[#0E1B3D] text-white hover:bg-[#17285A]" : "border-[#F2A93B] bg-[#F2A93B] text-[#0E1B3D] hover:bg-[#E89B26]"}`}>{t(act.label)}</Link>
+            <Link href={act.href} className={`inline-flex min-h-10 items-center justify-center py-1 text-center leading-tight ${oneLine} rounded-[4px] border px-4 text-[14px] font-semibold no-underline ${act.label === "View event" ? "border-[#0E1B3D] bg-[#0E1B3D] text-white hover:bg-[#17285A]" : "border-[#F2A93B] bg-[#F2A93B] text-[#0E1B3D] hover:bg-[#E89B26]"}`}>{t(act.label)}</Link>
           )}
-          {v.website ? <WebsiteButton url={v.website} className="h-auto! min-h-[34px] w-full justify-center py-1 text-center leading-tight" /> : null}
-          <Link href={`/sign-in?next=${encodeURIComponent(href)}`} className="flex min-h-[34px] w-full items-center justify-center py-1 text-center leading-tight rounded-[4px] border border-[#F2A93B] bg-[#F2A93B] px-2.5 text-[13px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]">{t("Sign in")}</Link>
-          <Link href="/contact" className="flex min-h-[34px] w-full items-center justify-center py-1 text-center leading-tight rounded-[4px] border border-[#B7BDC9] bg-white px-2.5 text-[13px] font-semibold text-[#121826] no-underline hover:bg-[#F7F8F6]">{t("Contact organizers")}</Link>
+          {/* Sign in: only for visitors who aren't signed in (the workspace list is always signed in). */}
+          {signedIn ? null : <Link href={`/sign-in?next=${encodeURIComponent(href)}`} className={`inline-flex min-h-10 items-center justify-center py-1 text-center leading-tight ${oneLine} rounded-[4px] border border-[#F2A93B] bg-[#F2A93B] px-4 text-[14px] font-semibold text-[#0E1B3D] no-underline hover:bg-[#E89B26]`}>{t("Sign in")}</Link>}
+          {v.website ? <WebsiteButton url={v.website} className={`h-auto! min-h-10 justify-center py-1 text-center leading-tight px-4! text-[14px]! ${signedIn ? "" : "@6xl:h-10! @6xl:whitespace-nowrap"}`} /> : null}
+          <Link href="/contact" className={`inline-flex min-h-10 items-center justify-center py-1 text-center leading-tight ${oneLine} rounded-[4px] border border-[#B7BDC9] bg-white px-4 text-[14px] font-semibold text-[#121826] no-underline hover:bg-[#F7F8F6]`}>{t("Contact organizers")}</Link>
           {/* More menu and follow star hidden for now.
           <EventMoreMenu slug={v.slug} ws={ws} kind={v.kind} />
           <button type="button" onClick={onFollow} aria-pressed={following} aria-label={following ? t("Unfollow {venue}", { venue: v.acr }) : t("Follow {venue}", { venue: v.acr })} title={following ? t("Following — click to stop deadline reminders") : t("Follow for deadline reminders")} className="h-[34px] w-[34px] rounded-[4px] text-[16px] leading-none"
@@ -452,6 +447,15 @@ function VenueCard({ v, following, onFollow, ws, mine, intent }: { v: Row; follo
           </button>
           */}
         </div>
+      </div>
+      <div className="flex-none text-left @6xl:w-[280px] @6xl:text-right">
+        <div className="flex items-center gap-1.5 @6xl:justify-end">
+          {v.st.extended ? <span className="rounded-[2px] bg-[#E6EDFC] px-2 py-0.5 font-mono text-[11px] font-medium tracking-[0.04em] text-[#1F47A8]">{t("EXTENDED")}</span> : null}
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em]" style={{ color: soon ? "#A8600F" : "#4A5263" }}>{soon ? t("Closes soon · {what}", { what: t(v.st.label).toLowerCase() }) : t(v.st.label)}</span>
+        </div>
+        <div className="mt-0.5 font-mono text-[22px] font-medium" style={{ color: soon ? "#A8600F" : v.st.state === "now" ? "#14603F" : "#121826" }}>{v.st.closes}</div>
+        <div className="text-[12px] text-[#4A5263]">{v.st.aoe}</div>
+        <div className="text-[12px] font-medium text-[#121826]">{v.st.local}</div>
       </div>
     </article>
   );

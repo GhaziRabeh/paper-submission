@@ -72,7 +72,7 @@ export function EventMoreMenu({ slug, ws, kind, tone = "light", align = "end", o
 /** The event's own website, opened in a new tab. */
 export function WebsiteButton({ url, tone = "light", size = "sm", className = "" }: { url: string; tone?: "light" | "dark"; size?: "sm" | "lg"; className?: string }) {
   const t = useT();
-  const cls = tone === "dark" ? "border-white/60 bg-white/20 text-white hover:bg-white/30" : "border-[#B7BDC9] bg-white text-[#121826] hover:bg-[#F7F8F6]";
+  const cls = tone === "dark" ? "border-white/60 bg-white/70 text-[#0E1B3D] hover:bg-white/80" : "border-[#B7BDC9] bg-white text-[#121826] hover:bg-[#F7F8F6]";
   const h = size === "lg" ? "h-11 px-4 text-[15px] font-medium" : "h-[34px] px-2.5 text-[13px] font-semibold";
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1.5 rounded-[4px] border no-underline ${h} ${cls} ${className}`}>

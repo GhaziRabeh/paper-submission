@@ -30,10 +30,12 @@ export async function SubmissionFrame({ ctx, step, children, aside }: { ctx: Ctx
   const idx = ctx.drafts.findIndex((d) => d.id === ctx.sub.id);
   const submitted = ctx.sub.stage !== "draft";
   const name = ctx.me.person ? `${ctx.me.person.given_name} ${ctx.me.person.family_name}` : ctx.me.email;
+  // A draft is titled by the type picked, as the organizers name it in their schedule (e.g. "Contributed paper").
+  const typeName = ctx.venue.details.schedule?.rows.find((r) => r.stage === "first" && r.type === ctx.sub.paperType)?.label ?? (ctx.sub.paperType ? t(ctx.sub.paperType) : t("New submission"));
   return (
     <WizardLayout
       header={<WizardHeader initials={initialsOf(name, ctx.me.email)} right={<SavedAgo at={ctx.sub.updatedAt} generatedAt={generatedAt} label={submitted ? t("Submitted · {no} · saved", { no: `#${String(ctx.sub.number).padStart(4, "0")}` }) : t("Draft saved")} />} />}
-      band={<TitleBand crumb={ctx.sub.isTest ? t("Test submission") : submitted ? t("Submission {no}", { no: `#${String(ctx.sub.number).padStart(4, "0")}` }) : t("New submission")} title={ctx.sub.isTest ? t("Test submission") : submitted ? t("Edit submission") : t("New submission")} venue={ctx.venue} generatedAt={generatedAt} />}
+      band={<TitleBand crumb={ctx.sub.isTest ? t("Test submission") : submitted ? t("Submission {no}", { no: `#${String(ctx.sub.number).padStart(4, "0")}` }) : t("New submission")} title={ctx.sub.isTest ? t("Test submission") : submitted ? t("Edit submission") : ctx.sub.paperType ? t("New {type}", { type: typeName }) : t("New submission")} venue={ctx.venue} generatedAt={generatedAt} />}
       rail={
         <StepRail
           rail={{ done: ctx.done, current: step, reachable, base: `/submissions/${ctx.sub.id}` }}

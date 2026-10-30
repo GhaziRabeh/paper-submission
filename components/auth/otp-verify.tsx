@@ -260,6 +260,8 @@ export function OtpVerify({ email, onSuccessHref, changeHref, kind = "signup", s
         <Link href={changeHref} className={ui.link}>{t(copy.change)}</Link>
       </div>
 
+      {/* "Email not arriving?" tips: hidden on the password reset code screen. */}
+      {kind === "recovery" ? null : (
       <details className="mt-6 rounded-[6px] border border-[#DADDE3] bg-white px-3.5 py-3 text-[14px]">
         <summary className="cursor-pointer font-semibold">{t("Email not arriving?")}</summary>
         <ul className={`mt-2.5 flex flex-col gap-1.5 pl-[18px] ${ui.muted}`}>
@@ -274,6 +276,7 @@ export function OtpVerify({ email, onSuccessHref, changeHref, kind = "signup", s
           )}
         </ul>
       </details>
+      )}
     </>
   );
 }

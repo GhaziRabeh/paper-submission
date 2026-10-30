@@ -2,9 +2,9 @@ import { EventMoreMenu } from "@/components/venues/event-actions";
 import { BadgeCheck, CalendarClock, CalendarRange, ExternalLink, FilePlus, Gauge, Ticket, UserRound } from "lucide-react";
 import Link from "@/components/site/link";
 import { getT } from "@/lib/i18n/server";
-import { CountdownCard, DeadlineStrip, FollowButton } from "@/components/venues/venue-live";
+import { FollowButton } from "@/components/venues/venue-live";
 import { VenueCoverImage } from "@/components/venues/cover";
-import { FIELD_COLOR } from "@/lib/venues/types";
+// import { FIELD_COLOR } from "@/lib/venues/types"; (field badge hidden for now)
 import { fmtRange } from "@/lib/venues/time";
 import type { DirectoryVenue } from "@/lib/venues/types";
 import { STAGE_LABEL, STAGE_TONE, primaryAction, roleChips, type MyEvent } from "@/lib/workspace/event-action";
@@ -20,7 +20,7 @@ export async function WorkspaceEventHeader({ v, tags, where, tagline, mine, open
   v: DirectoryVenue; tags: string[]; where: string; tagline: string | null; mine?: MyEvent; open: boolean; closedOn?: string | null; generatedAt: string; nav: [string, string][];
 }) {
   const t = await getT();
-  const [fbg, fink] = v.field ? FIELD_COLOR[v.field] : ["#E6EDFC", "#1F47A8"];
+  // const [fbg, fink] = v.field ? FIELD_COLOR[v.field] : ["#E6EDFC", "#1F47A8"];
   const act = primaryAction(v.slug, mine, open, v.submitUrl);
   const organizer = mine?.roles.some((r) => ORGANIZER.test(r));
   return (
@@ -30,20 +30,22 @@ export async function WorkspaceEventHeader({ v, tags, where, tagline, mine, open
           <Link href="/workspace/events" className="text-[#121826] underline">{t("Find events")}</Link> / {v.acr}
         </nav>
         <div className="mt-4 flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex min-w-0 gap-5">
-            <div className="relative hidden aspect-video w-[184px] flex-none overflow-hidden rounded-[8px] bg-[#EEF0EC] md:block">
+          <div className="flex min-w-0 flex-col gap-5 md:flex-row md:items-center">
+            {/* The cover, large and in the banners' 4:1 shape (as on the event cards). */}
+            <div className="relative aspect-[4/1] w-full flex-none overflow-hidden rounded-[8px] bg-[#EEF0EC] md:w-[440px] xl:w-[600px]">
               <VenueCoverImage cover={v.cover} field={v.field} alt={t("Cover image of {venue}", { venue: v.acr })} priority />
             </div>
             <div className="min-w-0">
+              {/* Badges (format, indexed in) hidden for now.
               <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag, i) => <span key={tag} className="rounded-[2px] px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em]" style={i === 0 && v.field ? { background: fbg, color: fink } : { background: "#EEF0EC", color: "#4A5263" }}>{tag}</span>)}
-              </div>
+                {tags.map((tag) => <span key={tag} className="rounded-[2px] px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em]" style={{ background: "#EEF0EC", color: "#4A5263" }}>{tag}</span>)}
+              </div> */}
               <h1 className="mt-2 font-serif text-[32px] font-normal leading-[1.05] tracking-[-0.01em] sm:text-[40px]">{v.acr}</h1>
               <p className="m-0 mt-1 text-[17px] text-[#121826]">{v.name}</p>
               {tagline ? <p className="m-0 mt-0.5 text-[15px] italic text-[#4A5263]">{tagline}</p> : null}
               <p className="m-0 mt-1 text-[14px] text-[#4A5263]">{[fmtRange(v.startsOn, v.endsOn, t.intl, t, v.kind === "journal"), where, v.society ? t("Sponsored by {society}", { society: v.society }) : null].filter(Boolean).join(" · ")}</p>
-              {/* Below 1280 px the deadline is a one-line strip here instead of the tall card beside. */}
-              <div className="mt-3 xl:hidden"><DeadlineStrip dates={v.dates} generatedAt={generatedAt} /></div>
+              {/* Deadline strip hidden for now (below 1280 px it stood in for the countdown card).
+              <div className="mt-3 xl:hidden"><DeadlineStrip dates={v.dates} generatedAt={generatedAt} /></div> */}
               <div className="mt-4 flex flex-wrap gap-2">
                 {act.external
                   ? <a href={act.href} target="_blank" rel="noopener noreferrer" className={`${btn} bg-[#F2A93B] text-[#0E1B3D] hover:bg-[#E89B26]`}>{t(act.label)}<ExternalLink size={14} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a>
@@ -51,21 +53,25 @@ export async function WorkspaceEventHeader({ v, tags, where, tagline, mine, open
                 {closedOn !== null ? <span className="inline-flex h-10 items-center rounded-[4px] bg-[#EEF0EC] px-3.5 text-[14px] font-semibold text-[#4A5263]">{closedOn ? t("Submissions closed on {date}", { date: closedOn }) : t("Submissions closed")}</span> : null}
                 <FollowButton venueId={v.id} slug={v.slug} compact />
                 {v.website ? <a href={v.website} target="_blank" rel="noopener noreferrer" className={ghost}>{t("Official website")}<ExternalLink size={14} aria-hidden /><span className="sr-only">{t("(opens in a new tab)")}</span></a> : null}
+                {/* More menu hidden for now.
                 <EventMoreMenu slug={v.slug} ws kind={v.kind} align="start" onPage extra={[
                   ...(organizer ? [{ label: "Event dashboard", href: `/manage/${v.slug}`, icon: <Gauge size={15} aria-hidden /> }] : []),
                   ...(act.label === "Continue draft" && open ? [{ label: "New paper", href: `/submit/${v.slug}`, icon: <FilePlus size={15} aria-hidden /> }] : []),
-                ]} />
+                ]} /> */}
               </div>
             </div>
           </div>
-          <div className="hidden flex-none xl:block xl:w-[380px]"><CountdownCard dates={v.dates} generatedAt={generatedAt} /></div>
+          {/* Countdown card hidden for now.
+          <div className="hidden flex-none xl:block xl:w-[380px]"><CountdownCard dates={v.dates} generatedAt={generatedAt} startsOn={v.startsOn} /></div> */}
         </div>
       </div>
+      {/* Section bar ("On this page") hidden for now, as on the public event page.
       <nav aria-label={t("On this page")} className="sticky top-[60px] z-10 mt-6 border-t border-[#DADDE3] bg-white">
         <div className="mx-auto flex max-w-[1280px] gap-6 overflow-x-auto px-5 text-[14px] sm:px-8">
           {nav.map(([id, label]) => <a key={id} href={`#${id}`} className="flex-none py-3 text-[#4A5263] no-underline hover:text-[#121826]">{t(label)}</a>)}
         </div>
-      </nav>
+      </nav> */}
+      <div className="mt-6" />
     </section>
   );
 }

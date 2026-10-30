@@ -33,36 +33,39 @@ export function DeadlineStrip({ dates, generatedAt }: { dates: VenueDate[]; gene
   );
 }
 
-/** Navy countdown card (top right of canvas PV02). */
-export function CountdownCard({ dates, generatedAt }: { dates: VenueDate[]; generatedAt: string }) {
+/**
+ * Navy countdown card (top right of canvas PV02): a live counter to the start of the event (its "Conference" date,
+ * or the first day of the event), not to the next paper deadline.
+ */
+export function CountdownCard({ dates, generatedAt, startsOn }: { dates: VenueDate[]; generatedAt: string; startsOn?: string | null }) {
   const t = useT();
-  const { now, tz } = useClock(generatedAt);
-  const next = dates.find((d) => DEADLINE.has(d.kind) && Date.parse(d.startsAt) > now);
-  if (!next) {
+  const { now, tz } = useClock(generatedAt, 1000);
+  const conf = dates.find((d) => d.kind === "conference");
+  const start = conf?.startsAt ?? (startsOn ? `${startsOn}T00:00:00Z` : null);
+  const at = start ? Date.parse(start) : NaN;
+  if (!start || Number.isNaN(at) || at <= now) {
     return (
       <div className="w-full rounded-[8px] bg-[#0E1B3D] px-5 py-[18px] text-[#F5F6F3] lg:w-[380px]">
-        <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#F2A93B]">{t("Deadlines")}</div>
-        <p className="mt-2 text-[15px] text-[#D6DCEA]">{t("No upcoming deadlines. Follow the venue to hear when the next call opens.")}</p>
+        <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#F2A93B]">{t("Event")}</div>
+        <p className="mt-2 text-[15px] text-[#D6DCEA]">{start && !Number.isNaN(at) ? t("The event has started.") : t("The event dates will be announced soon.")}</p>
       </div>
     );
   }
-  const ms = Date.parse(next.startsAt) - now;
-  const parts: [string, string][] = [[pad(Math.floor(ms / DAY)), t("days")], [pad(Math.floor((ms % DAY) / 3600e3)), t("h")], [pad(Math.floor((ms % 3600e3) / 60e3)), t("min")]];
+  const ms = at - now;
+  const parts: [string, string][] = [[pad(Math.floor(ms / DAY)), t("days")], [pad(Math.floor((ms % DAY) / 3600e3)), t("h")], [pad(Math.floor((ms % 3600e3) / 60e3)), t("min")], [pad(Math.floor((ms % 60e3) / 1e3)), t("sec")]];
   return (
     <div className="w-full rounded-[8px] bg-[#0E1B3D] px-5 py-[18px] text-[#F5F6F3] lg:w-[380px]">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#F2A93B]">{t("Next deadline")} · {t(next.label)}</span>
-        {next.isExtended ? <span className="rounded-[2px] bg-[#2F5FD0] px-2 py-0.5 font-mono text-[11px] text-white">{t("EXTENDED")}</span> : null}
+      <div className="font-mono text-[11px] uppercase tracking-[0.06em] text-[#F2A93B]">{t("Event starts in")}</div>
+      {/* Live counter (ticks every second). */}
+      <div role="timer" className="mt-3 grid grid-cols-4 gap-2" aria-label={t("{d} days {h} hours {m} minutes left", { d: parts[0][0], h: parts[1][0], m: parts[2][0] })}>
+        {parts.map(([v, u]) => (
+          <span key={u} className="flex flex-col items-center rounded-[6px] bg-[#17285A] px-1 py-2.5">
+            <span className="font-mono text-[34px] font-medium leading-none tabular-nums">{v}</span>
+            <span className="mt-1 text-[12px] uppercase tracking-[0.06em] text-[#B9C3DA]">{u}</span>
+          </span>
+        ))}
       </div>
-      <div className="mt-3 flex items-baseline gap-4" aria-label={t("{d} days {h} hours {m} minutes left", { d: parts[0][0], h: parts[1][0], m: parts[2][0] })}>
-        {parts.map(([v, u]) => <span key={u}><span className="font-mono text-[40px] font-medium leading-none">{v}</span><span className="ml-1 text-[13px] text-[#B9C3DA]">{u}</span></span>)}
-      </div>
-      <p className="mt-3 text-[13px] text-[#B9C3DA]">{fmtAoE(next.startsAt, t.intl)}</p>
-      <p className="text-[15px] font-semibold">= {t("{time} in {city}", { time: fmtLocal(next.startsAt, tz, true, t.intl), city: cityOf(tz) })}</p>
-      <p className="mt-3 border-t border-[#24335C] pt-3 text-[12px] text-[#B9C3DA]">
-        {next.isExtended && next.extendedFrom ? `${t("Extended from {date}.", { date: dateOnly(next.extendedFrom, tz, t.intl) })} ` : ""}
-        {next.isHard ? t("Hard deadline — the system closes on time.") : t("Soft deadline — it may move.")}
-      </p>
+      <p className="mt-3 border-t border-[#24335C] pt-3 text-[13px] text-[#B9C3DA]">{t("Starts {date}", { date: dateOnly(start, conf ? tz : "UTC", t.intl) })}</p>
     </div>
   );
 }

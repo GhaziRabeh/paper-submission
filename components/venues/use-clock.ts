@@ -6,17 +6,17 @@ import { getFollowState, toggleFollow, type FollowState } from "@/lib/venues/act
 
 /**
  * Server render uses the cache time + UTC so hydration matches; after mount we switch to the
- * real clock and the viewer's time zone, then tick every minute.
+ * real clock and the viewer's time zone, then tick every minute (or every `every` ms, e.g. 1 s for a live counter).
  */
-export function useClock(generatedAt: string) {
+export function useClock(generatedAt: string, every = 60_000) {
   const [clock, setClock] = useState({ now: Date.parse(generatedAt), tz: "UTC" });
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
     const tick = () => setClock({ now: Date.now(), tz });
     const first = setTimeout(tick, 0);
-    const id = setInterval(tick, 60_000);
+    const id = setInterval(tick, every);
     return () => { clearTimeout(first); clearInterval(id); };
-  }, []);
+  }, [every]);
   return clock;
 }
 

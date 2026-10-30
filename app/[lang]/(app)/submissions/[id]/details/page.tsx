@@ -5,6 +5,10 @@ import { DetailsForm } from "@/components/submission/details-form";
 import { asideCard, kicker, noteBlue } from "@/components/submission/shell";
 import { Reveal } from "@/components/motion/reveal";
 import { WizardSkeleton } from "@/components/skeletons";
+import { ChoiceCard } from "@/components/submission/choice-card";
+import { choiceInfo } from "@/components/submission/type-aside";
+import { tracksOf } from "@/lib/submission/options";
+import { DEFAULT_KEYWORDS } from "@/lib/submission/data";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -16,11 +20,11 @@ async function Inner({ params }: P) {
   const { id } = await params;
   const ctx = await requireCtx(id, "details");
   const s = ctx.sub;
-  const t = await getT();
+  const [t, info] = await Promise.all([getT(), choiceInfo(ctx.venue)]);
   const byline = ctx.authors.map((a) => a.name).join(", ");
   return (
-    <SubmissionFrame ctx={ctx} step="details" aside={
-      <>
+    <SubmissionFrame ctx={ctx} step="details" /* Right column hidden for now:
+        ( "Your choice" card hidden for now. <ChoiceCard info={info} initialType={info[s.paperType] ? s.paperType : null} initialTrack={s.track ?? null} /> )
         <section className="overflow-hidden rounded-[8px] border border-[#DADDE3] bg-white">
           <div className={`${kicker} border-b border-[#DADDE3] bg-[#FBFBF9] px-[18px] py-2.5`}>{t("How it will look in the program")}</div>
           <div className="px-[18px] py-4">
@@ -38,10 +42,13 @@ async function Inner({ params }: P) {
           </ul>
         </section>
         <div className={noteBlue}><strong>{t("Reviewers see this title and abstract")}</strong> {t("when deciding whether to accept a review. Make the first sentence count.")}</div>
-      </>
-    }>
-      <DetailsForm id={id} typeLine={[s.paperType, s.track].filter(Boolean).map((x) => t(x as string)).join(" · ")}
+    */>
+      {/* No right column: the form uses the full width. */}
+      <div>
+      <DetailsForm id={id} eventName={ctx.venue.name} eventAcr={ctx.venue.acr} typeLine={info[s.paperType]?.label ?? t(s.paperType)} tracks={tracksOf(ctx.venue)} initialTrack={s.track ?? ""} backHref={`/events/${ctx.venue.slug}`} byline={byline}
+        keywordGroups={(ctx.venue.details.keyword_groups?.length ? ctx.venue.details.keyword_groups : DEFAULT_KEYWORDS).map((g) => ({ group: g.group, keywords: [...g.keywords] }))} keywords={s.keywords} keywordPriority={s.declarations.keyword_priority}
         initial={{ title: s.title, abstract: s.abstract ?? "", shortTitle: s.shortTitle ?? "", original: !!s.declarations.original, preprint: !!s.declarations.preprint, studentAward: !!s.declarations.student_award }} />
+      </div>
     </SubmissionFrame>
   );
 }

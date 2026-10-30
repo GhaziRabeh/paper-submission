@@ -7,8 +7,8 @@ import { absoluteUrl } from "@/lib/config/site";
 import { detectIdentifier } from "@/lib/auth/identifier";
 import { accountEmailFor, plenaryIdSignIn } from "@/lib/auth/plenary-id";
 import { sendSecurityNotice } from "@/lib/email/security-mail";
-import { scorePassword } from "@/lib/auth/password-rules";
-import { isLeakedIfChecked, serverPolicy } from "@/lib/auth/password-policy-server";
+import { signupPasswordOk } from "@/lib/auth/password-rules";
+// import { isLeakedIfChecked, serverPolicy } from "@/lib/auth/password-policy-server"; (strength rules off for now)
 import { clearRecovery, hasRecovery, markRecovery } from "@/lib/auth/recovery-cookie";
 
 /*
@@ -97,10 +97,11 @@ export async function saveNewPassword(_: NewPasswordState, formData: FormData): 
     return { message: "This reset session has expired. Ask for a new code to continue." };
   }
 
-  const r = scorePassword(password, data.user.email ?? "", undefined, await serverPolicy());
-  if (!r.ok) return { fieldErrors: { password: ["Choose a password that meets all the rules."] } };
+  // Same rule as sign-up: at least 6 characters (strength rules and leak check off for now).
+  // const r = scorePassword(password, data.user.email ?? "", undefined, await serverPolicy());
+  if (!signupPasswordOk(password)) return { fieldErrors: { password: ["Use at least 6 characters."] } };
   if (password !== confirm) return { fieldErrors: { confirm: ["The two passwords don't match yet."] } };
-  if (await isLeakedIfChecked(password)) return { fieldErrors: { password: ["That password has appeared in a data breach. Choose another."] } };
+  // if (await isLeakedIfChecked(password)) return { fieldErrors: { password: ["That password has appeared in a data breach. Choose another."] } };
 
   const { error } = await supabase.auth.updateUser({ password, data: { password_set_at: new Date().toISOString(), secured_for: data.user.email_confirmed_at ?? null } });
   if (error) {
@@ -109,8 +110,11 @@ export async function saveNewPassword(_: NewPasswordState, formData: FormData): 
     return { fieldErrors: { password: [same ? "Use a password you haven't used here before." : weak ? "That password has appeared in a data breach. Choose another." : "We couldn't save that password. Please try again."] } };
   }
 
-  if (signOutOthers) await supabase.auth.signOut({ scope: "others" });
   await clearRecovery();
   await sendSecurityNotice("password_changed", data.user.email ?? "", "Reset with an emailed code or link");
-  return { done: true, signedOutOthers: signOutOthers };
+  // The reset ends signed out: the person signs in with the new password on the sign-in page (email filled in).
+  // "Sign out other devices" also ends the sessions elsewhere. (Returning here would redraw /reset-password without
+  // the recovery cookie, which shows "This reset has expired" although the password was saved.)
+  await supabase.auth.signOut({ scope: signOutOthers ? "global" : "local" });
+  redirect(`/sign-in?${new URLSearchParams({ email: data.user.email ?? "", error: "password_reset" })}`);
 }

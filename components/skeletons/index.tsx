@@ -77,7 +77,7 @@ export async function DirectorySkeleton() {
       <PublicHeader signedIn={false} />
       <Skeleton>
         <section className="bg-[#0E1B3D] text-[#F5F6F3]">
-          <div className="mx-auto max-w-[1280px] px-5 pb-0 pt-10 sm:px-8">
+          <div className="mx-auto max-w-none px-5 pb-0 pt-10 sm:px-8">
             <p className="m-0 font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-[#F2A93B]">{t("Event directory")}</p>
             <h1 className="mt-2 font-serif text-[36px] font-[350] leading-[1.05] tracking-[-0.015em] sm:text-[48px]">{t("Find your next call for papers")}</h1>
             <Line dark size={16} w="min(520px, 90%)" className="mt-2" />
@@ -100,12 +100,7 @@ export async function DirectorySkeleton() {
             <div className="h-8" />
           </div>
         </section>
-        <div className="mx-auto box-border flex w-full max-w-[1280px] flex-col items-start gap-8 px-5 pb-14 pt-7 sm:px-8 lg:flex-row">
-          <div className="hidden w-[250px] flex-none flex-col gap-[22px] lg:flex">
-            {[4, 5, 4].map((n, g) => (
-              <div key={g}><Line size={11} w={80} className="mb-2" />{Array.from({ length: n }, (_, i) => <span key={i} className="flex h-[30px] items-center gap-2.5"><Bar w={18} h={18} className="rounded-full!" /><Bar w={i % 2 ? 120 : 150} h={12} /></span>)}</div>
-            ))}
-          </div>
+        <div className="mx-auto box-border flex w-full max-w-none flex-col items-start gap-8 px-5 pb-14 pt-7 sm:px-8 lg:flex-row">
           <div className="flex w-full min-w-0 flex-auto flex-col gap-3">
             <div className="flex items-center justify-between"><Line size={14} w={140} /><Bar w={190} h={38} className="rounded-[6px]!" /></div>
             {Array.from({ length: 4 }, (_, i) => (

@@ -15,6 +15,7 @@ import { noteStep, overLimit } from "@/lib/auth/attempts";
 import { expiresIn, sign, signingReady } from "@/lib/auth/signing";
 import { clearPendingSignup, readPendingSignup, setPendingSignup, type PendingSignup } from "@/lib/auth/pending-signup";
 import { getSiteFlags } from "@/lib/config/site-flags";
+import { MAX_SKILLS, SKILLS } from "@/lib/skills/keywords";
 
 export type ExistingKind = "complete" | "no_profile" | "secondary";
 export type StartState = {
@@ -52,11 +53,16 @@ const startSchema = z.object({
   consent: z.literal("on", { message: "Please agree to continue." }),
   next: z.string().optional(),
   venue: z.string().optional(),
-  // Optional; the research profile (step 4) starts from them.
-  university: z.string().trim().max(200, "Use 200 characters or fewer.").optional(),
+  // Required; the research profile (step 4) starts from them.
+  university: z.string({ message: "Choose your affiliation." }).trim().min(2, "Choose your affiliation.").max(200, "Use 200 characters or fewer."),
   universityRor: z.union([z.literal(""), z.string().regex(/^https:\/\/ror\.org\/[a-z0-9]{6,12}$/)]).optional(),
-  country: z.union([z.literal(""), z.string().regex(/^[A-Z]{2}$/, "Choose a country from the list.")]).optional(),
-  grade: z.string().trim().max(80, "Use 80 characters or fewer.").optional(),
+  country: z.string({ message: "Choose your country." }).regex(/^[A-Z]{2}$/, "Choose your country."),
+  grade: z.string({ message: "Choose your grade." }).trim().min(1, "Choose your grade.").max(80, "Use 80 characters or fewer."),
+  // Skills: keywords from lib/skills/keywords.ts, joined with "; " (1 to MAX_SKILLS).
+  skills: z.string({ message: "Choose at least one skill." }).transform((s) => s.split(";").map((k) => k.trim()).filter(Boolean))
+    .refine((a) => a.length >= 1, "Choose at least one skill.")
+    .refine((a) => a.length <= MAX_SKILLS, `Choose up to ${MAX_SKILLS} skills.`)
+    .refine((a) => a.every((k) => SKILLS.includes(k)), "Choose your skills from the suggestions."),
 });
 
 const SIGNUPS_PER_HOUR = 8;
@@ -85,7 +91,7 @@ const emailLimited = (e: { status?: number; code?: string; message: string }) =>
 export async function startSignup(_: StartState, formData: FormData): Promise<StartState> {
   const parsed = startSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
-  const { firstName, lastName, email, password = "", confirm = "", next, venue, university, universityRor, country, grade } = parsed.data;
+  const { firstName, lastName, email, password = "", confirm = "", next, venue, university, universityRor, country, grade, skills } = parsed.data;
   // Site switch "sign-up code" off: step 1 is kept (signed cookie) and the password is chosen on step 2
   // (/create-account/password, finishSignup), where the account is created without an emailed code.
   const noCode = !(await getSiteFlags()).signupEmailCode;
@@ -110,7 +116,7 @@ export async function startSignup(_: StartState, formData: FormData): Promise<St
   const meta = {
     given_name: firstName, family_name: lastName, consent_at: new Date().toISOString(),
     ...(university ? { university, ...(universityRor ? { university_ror: universityRor } : {}) } : {}), ...(country ? { country } : {}),
-    ...(grade ? { grade } : {}),
+    ...(grade ? { grade } : {}), skills: skills.join("; "),
   };
 
   if (stash) {
@@ -192,7 +198,9 @@ async function createWithPassword(
     // Confirmed by the server (signed request, only for an account made moments ago), then signed in.
     if (!data.session) {
       const exp = expiresIn(5);
-      await supabase.rpc("confirm_signup_without_code", { p_email: email, p_expires: exp, p_sig: sign(`signup-noconfirm|${email}`, exp) });
+      const { data: confirmed } = await supabase.rpc("confirm_signup_without_code", { p_email: email, p_expires: exp, p_sig: sign(`signup-noconfirm|${email}`, exp) });
+      // false = the database refused the signature: PLENARY_SIGNING_SECRET differs from private.app_secrets('signing').
+      if (confirmed !== true) console.error("[signup] no-code confirm refused — check PLENARY_SIGNING_SECRET matches the database secret");
       const { error: e3 } = await supabase.auth.signInWithPassword({ email, password });
       if (e3) {
         console.error("[signup] no-code sign-in failed:", e3.status, e3.code, e3.message);
@@ -219,9 +227,10 @@ export async function finishSignup(_: PasswordState, formData: FormData): Promis
   if (!signupPasswordOk(password)) return { fieldErrors: { password: ["Use at least 6 characters."] } };
   if (password !== confirm) return { fieldErrors: { confirm: ["The two passwords don't match yet."] } };
   const supabase = await createClient();
-  // Signed in: the research profile is filled from step 1 (name, university, country), so the sign-up ends on
-  // the account profile page (Workspace › Account › Profile), where everything can be edited. If that fails,
-  // the usual next step (the research profile screen) opens instead.
+  // The research profile is filled from step 1 (name, university, country), then the new account is signed out
+  // and the sign-up ends on the sign-in page, with the email filled in. If the profile fails, the research
+  // profile screen opens after that first sign-in (the usual next-step rule).
+  const toSignIn = `/sign-in?${new URLSearchParams({ email: pending.email, error: "account_created", ...(pending.next ? { next: pending.next } : {}) })}`;
   const r = await createWithPassword(supabase, pending, password, true, async () => {
     await clearPendingSignup();
     const m = pending.meta;
@@ -235,11 +244,13 @@ export async function finishSignup(_: PasswordState, formData: FormData): Promis
       p_country: m.country || null,
       p_other_email: null,
     });
-    if (error) { console.error("[signup] auto profile failed:", error.code, error.message); return; }
-    const { error: metaErr } = await supabase.auth.updateUser({ data: { onb: null } });
-    if (!metaErr) await supabase.auth.refreshSession();
-    await noteStep(supabase, "profile");
-    return "/workspace/account/profile";
+    if (error) console.error("[signup] auto profile failed:", error.code, error.message);
+    else {
+      await supabase.auth.updateUser({ data: { onb: null } });
+      await noteStep(supabase, "profile");
+    }
+    await supabase.auth.signOut({ scope: "local" });
+    return toSignIn;
   });
   if (r.exists) return { message: "This email already has an account. Sign in instead." };
   return { message: r.message, fieldErrors: r.fieldErrors };
@@ -335,6 +346,11 @@ export async function saveChosenPassword(_: PasswordState, formData: FormData): 
   }
   await supabase.auth.refreshSession();
   await noteStep(supabase, "password");
+  // A co-author invited by email (Authors step): once the password is set, they sign in with it on the sign-in page.
+  if ((auth.user.user_metadata as { invited_by?: string } | undefined)?.invited_by) {
+    await supabase.auth.signOut({ scope: "local" });
+    redirect(`/sign-in?${new URLSearchParams({ email: auth.user.email, error: "password_set", next: "/workspace/submissions" })}`);
+  }
   const r = await resolveOnboarding(supabase);
   redirect(stepHref(r.step, safeNext(p.data.next, "/welcome"), { ref: r.ref, email: auth.user.email }));
 }

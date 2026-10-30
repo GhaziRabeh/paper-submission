@@ -21,8 +21,10 @@ export function typeOptions(v: WizardVenue, win: SubmissionWindow | null = null)
     return win.types.map((ty) => {
       const length = ty.pages ? `${ty.pages}${ty.extraPages ? ` + ${ty.extraPages}` : ""} pages` : v.pageLimit ?? undefined;
       const { when, whenVars } = !ty.open ? { when: "closed" } : closesIn(ty.deadline);
+      // The name the organizers publish for it in their schedule (venues.details.schedule), e.g. "Contributed paper".
+      const label = v.details.schedule?.rows.find((r) => r.stage === "first" && r.type === ty.name)?.label;
       return {
-        name: ty.name, note: ty.note ?? undefined,
+        name: ty.name, label, note: ty.note ?? undefined,
         tags: [length, blindLabel(ty.blind) ?? v.reviewMode?.split("·")[0]?.trim(), /workshop|proposal/i.test(ty.name) ? "Proposal" : "Proceedings"].filter(Boolean) as string[],
         when, whenVars, closed: !ty.open,
       };

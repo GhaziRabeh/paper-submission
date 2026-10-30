@@ -1,11 +1,11 @@
 "use client";
 
-import { usePasswordPolicy } from "@/components/auth/password-policy";
+// import { usePasswordPolicy } from "@/components/auth/password-policy"; (strength rules off: length only)
 import Link from "@/components/site/link";
 import { useActionState, useState } from "react";
 import { saveNewPassword, type NewPasswordState } from "@/lib/auth/reset-actions";
-import { maskEmail, scorePassword } from "@/lib/auth/password-rules";
-import { PasswordMeter, useLeakCheck } from "@/components/auth/password-meter";
+import { SIGNUP_MIN_LENGTH, maskEmail, signupPasswordOk } from "@/lib/auth/password-rules";
+// import { PasswordMeter, useLeakCheck } from "@/components/auth/password-meter"; (strength bar hidden for now)
 import { NavyAside, SetupSteps, ShieldNote, SplitLayout, ui } from "@/components/auth/split-layout";
 import { useT } from "@/lib/i18n/client";
 
@@ -23,12 +23,15 @@ export function NewPasswordFlow({ email, acceptedAt }: { email: string; accepted
   const masked = maskEmail(email);
   const done = !!state.done;
 
-  const policy = usePasswordPolicy();
-  const r = scorePassword(pw, email, undefined, policy);
+  // Same rule as sign-up: at least 6 characters, no strength bar and no leak check.
+  // const policy = usePasswordPolicy();
+  // const r = scorePassword(pw, email, undefined, policy);
+  const r = { ok: signupPasswordOk(pw) };
   const mismatch = pw2.length > 0 && pw2 !== pw;
   const matchOk = pw2.length > 0 && pw2 === pw;
   const triedOrServer = tried || !!state.fieldErrors?.password;
-  const leak = useLeakCheck(pw, r.long && r.mixed && r.notCommon && r.notEmail);
+  // const leak = useLeakCheck(pw, r.long && r.mixed && r.notCommon && r.notEmail);
+  const leak = "idle" as string;
   const newBorder = (triedOrServer && !r.ok) || leak === "leaked" ? "2px solid #B3261E" : "1px solid #B7BDC9";
   const confirmBorder = mismatch || state.fieldErrors?.confirm ? "2px solid #B3261E" : matchOk ? "2px solid #18744F" : "1px solid #B7BDC9";
 
@@ -105,7 +108,8 @@ export function NewPasswordFlow({ email, acceptedAt }: { email: string; accepted
               {show ? t("Hide") : t("Show")}
             </button>
           </div>
-          <PasswordMeter id="pr11-rules" pw={pw} email={email} flag={triedOrServer} leak={leak} />
+          {/* Strength bar hidden for now. <PasswordMeter id="pr11-rules" pw={pw} email={email} flag={triedOrServer} leak={leak} /> */}
+          <span id="pr11-rules" className={`text-[13px] ${triedOrServer && !r.ok ? "text-[#B3261E]" : "text-[#4A5263]"}`}>{t("At least {n} characters.", { n: SIGNUP_MIN_LENGTH })}</span>
           {state.fieldErrors?.password ? <span role="alert" className={ui.error}>{t(state.fieldErrors.password[0])}</span> : null}
         </div>
 

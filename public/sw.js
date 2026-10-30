@@ -12,12 +12,12 @@
  *
  * Keep VERSION in sync with components/pwa/constants.ts.
  */
-const VERSION = "v1";
+const VERSION = "v2"; // v2: new Hyper Papers logo and icons
 const STATIC_CACHE = `plenary-static-${VERSION}`;
 const PAGE_CACHE = `plenary-pages-${VERSION}`;
 const LOCALES = ["en", "fr", "it", "de"];
 const OFFLINE_URLS = LOCALES.map((l) => `/${l}/offline`);
-const PRECACHE = [...OFFLINE_URLS, "/icons/icon-192.png", "/icons/icon.svg", "/manifest.webmanifest"];
+const PRECACHE = [...OFFLINE_URLS, "/icons/hp-icon-192.png", "/icons/hp-icon.svg", "/manifest.webmanifest"];
 const LANG_KEY = "/__plenary-lang";
 const MAX_STATIC = 300;
 const MAX_PAGES = 40;

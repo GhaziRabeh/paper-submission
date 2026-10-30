@@ -4,6 +4,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { absoluteUrl, safeNext } from "@/lib/config/site";
 import { accountEmailFor } from "@/lib/auth/plenary-id";
+import { emailCodeAfterPassword, hasPasswordOk } from "@/lib/auth/password-ok";
+import { getSiteFlags } from "@/lib/config/site-flags";
 
 export type ResendState = { ok: boolean; message?: string };
 
@@ -16,6 +18,8 @@ export async function resendSignInCode(identifier: string, next?: string): Promi
   const { email, id } = await accountEmailFor(identifier);
   if (id && !email) return { ok: true }; // unknown ID: same answer as a real one
   if (!email || !z.string().email().max(254).safeParse(email).success) return { ok: false, message: "That email doesn’t look right." };
+  // Two-step by email: a new code only for someone who just passed the password step.
+  if (emailCodeAfterPassword() && (await getSiteFlags()).signinPassword && !(await hasPasswordOk(email))) return { ok: false, message: "Your sign-in timed out. Go back and enter your password again." };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,

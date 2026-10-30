@@ -40,7 +40,7 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
     : signupUni ? { id: signupRor, name: signupUni, place: t("From your sign-up") } : null;
 
   return (
-    <SplitLayout
+    <SplitLayout showAside={false}
       width={440}
       aside={
         <NavyAside label={t("Account set-up progress")} kicker={t("Creating your account")} title={first ? t("Last step, {name}.", { name: first }) : t("Last step.")}>

@@ -25,7 +25,7 @@ export async function PlenaryIdCard({ name, affiliation, id, orcid, className = 
               <div className={`truncate text-[13px] ${ui.muted}`}>{affiliation ?? t("Affiliation not set yet")}</div>
             </div>
           </div>
-          <div className={`mt-3.5 font-mono text-[11px] tracking-[0.06em] ${ui.muted}`}>{t("PLENARY ID")}</div>
+          <div className={`mt-3.5 font-mono text-[11px] tracking-[0.06em] ${ui.muted}`}>{/* Was t("PLENARY ID") (shown with the brand name). */}PIN</div>
           <div className="flex flex-wrap items-center gap-2">
             {id ? (
               <>

@@ -72,7 +72,7 @@ async function Aside({ searchParams }: { searchParams: Promise<Search> }) {
 
 export default function Page({ searchParams }: { searchParams: Promise<Search> }) {
   return (
-    <SplitLayout aside={<Suspense fallback={<AuthAsideSkeleton />}><Aside searchParams={searchParams} /></Suspense>}>
+    <SplitLayout showAside={false} aside={<Suspense fallback={<AuthAsideSkeleton />}><Aside searchParams={searchParams} /></Suspense>}>
       <Suspense fallback={<AuthFormSkeleton />}>
         <Left searchParams={searchParams} />
       </Suspense>

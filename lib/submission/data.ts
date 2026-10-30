@@ -19,7 +19,7 @@ export type Conflict = { id: string; personId: string | null; institution: strin
 
 export type Submission = {
   id: string; venueId: string; number: number | null; title: string; abstract: string | null; shortTitle: string | null; paperType: string; track: string | null;
-  stage: string; stageDetail: string | null; draftStep: number; declarations: { original?: boolean; preprint?: boolean; student_award?: boolean };
+  stage: string; stageDetail: string | null; draftStep: number; declarations: { original?: boolean; preprint?: boolean; student_award?: boolean; keyword_priority?: Record<string, number>; commitment_at?: string };
   keywords: string[]; ownKeywords: string[]; conflictsOkAt: string | null; submittedAt: string | null; updatedAt: string; withdrawnAt: string | null;
   pdfCheck: string; copyrightCheck: string; registrationCheck: string;
   /** What the authors agreed to on the last step (agree to the terms, one author will present). */
@@ -38,10 +38,12 @@ const words = (s: string | null) => (s?.trim() ? s.trim().split(/\s+/).length : 
 export function stepDone(sub: Submission, authors: Author[], files: SubFile[]): Record<StepKey, boolean> {
   const paper = files.find((f) => f.role === "paper" && f.current);
   return {
-    type: !!sub.paperType && !!sub.track,
-    details: !!sub.title && sub.title !== "Untitled paper" && words(sub.abstract) > 0 && words(sub.abstract) <= 250 && !!sub.declarations.original,
-    authors: authors.length > 0 && authors.filter((a) => a.corresponding).length === 1,
-    keywords: sub.keywords.length >= 3,
+    type: !!sub.paperType, // the track is optional for now (no Track field on Details)
+    // Originality is confirmed on the Submit step now (the Declarations on Details are hidden).
+    details: !!sub.title && sub.title !== "Untitled paper" && words(sub.abstract) > 0 && words(sub.abstract) <= 250,
+    // The Commitment (Authors step) must be agreed.
+    authors: authors.length > 0 && authors.filter((a) => a.corresponding).length === 1 && !!sub.declarations.commitment_at,
+    keywords: sub.keywords.length >= 1,
     files: !!paper && paper.check.status !== "failed",
     conflicts: !!sub.conflictsOkAt,
     review: sub.stage !== "draft" || !!sub.testSubmittedAt,

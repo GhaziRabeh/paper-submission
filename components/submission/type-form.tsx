@@ -5,8 +5,9 @@ import { useActionState, useState } from "react";
 import { saveType, type ActionState } from "@/lib/submission/actions";
 import { card, ghostBtn, h2, primaryBtn } from "@/components/submission/shell";
 import { useT } from "@/lib/i18n/client";
+import { setPick as sharePick } from "@/components/submission/type-pick";
 
-export type TypeOption = { name: string; note?: string; tags: string[]; when: string; whenVars?: Record<string, string | number>; closed?: boolean };
+export type TypeOption = { name: string; /** Shown instead of the name: the organizers' schedule label. */ label?: string; note?: string; tags: string[]; when: string; whenVars?: Record<string, string | number>; closed?: boolean };
 
 /** SB01 main column: venue card, type radio cards, track. */
 export function TypeForm({ venue, types, tracks, initialType, initialTrack, submissionId, closed = false }: {
@@ -45,12 +46,12 @@ export function TypeForm({ venue, types, tracks, initialType, initialTrack, subm
         {types.map((ty) => {
           const on = pick === ty.name;
           return (
-            <button key={ty.name} type="button" role="radio" aria-checked={on} disabled={ty.closed || closed} onClick={() => setPick(ty.name)}
+            <button key={ty.name} type="button" role="radio" aria-checked={on} disabled={ty.closed || closed} onClick={() => { setPick(ty.name); sharePick({ type: ty.name }); }}
               className="flex w-full items-start gap-3.5 rounded-[8px] bg-white px-4 py-4 text-left disabled:opacity-55"
               style={{ border: on ? "2px solid #F2A93B" : "1px solid #DADDE3", background: on ? "#FFFBF3" : "#FFFFFF", padding: on ? "15px" : undefined }}>
               <span aria-hidden className="mt-0.5 box-border size-[18px] flex-none rounded-full bg-white" style={{ border: on ? "5px solid #0E1B3D" : "1.5px solid #B7BDC9" }} />
               <span className="min-w-0 flex-auto">
-                <span className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-semibold">{ty.name}</span><span className="font-mono text-[12px] text-[#7A4508]">{t(ty.when, ty.whenVars)}</span></span>
+                <span className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-semibold">{ty.label ?? ty.name}</span><span className="font-mono text-[12px] text-[#7A4508]">{t(ty.when, ty.whenVars)}</span></span>
                 {ty.note ? <span className="mt-0.5 block text-[14px] text-[#4A5263]">{ty.note}</span> : null}
                 <span className="mt-2 flex flex-wrap gap-1.5">{ty.tags.map((g) => <span key={g} className="rounded-[2px] bg-[#EEF0EC] px-2 py-0.5 font-mono text-[11px] uppercase text-[#4A5263]">{t(g)}</span>)}</span>
               </span>
@@ -63,7 +64,7 @@ export function TypeForm({ venue, types, tracks, initialType, initialTrack, subm
       <section className={`${card} mt-6`}>
         <h2 className={h2}>{t("Track")}</h2>
         <label htmlFor="sb1-track" className="mt-1 block text-[#4A5263]">{t("Pick the track closest to your paper. The program chair may move it.")}</label>
-        <select id="sb1-track" name="track" value={track} onChange={(e) => setTrack(e.target.value)} aria-invalid={!!fe.track || undefined}
+        <select id="sb1-track" name="track" value={track} onChange={(e) => { setTrack(e.target.value); sharePick({ track: e.target.value || null }); }} aria-invalid={!!fe.track || undefined}
           className="mt-3 h-12 w-full rounded-[4px] bg-white px-3 text-[16px]" style={{ border: fe.track ? "2px solid #B3261E" : "1px solid #B7BDC9" }}>
           <option value="">{t("Choose a track…")}</option>
           {tracks.map((tr) => <option key={tr} value={tr}>{t(tr)}</option>)}

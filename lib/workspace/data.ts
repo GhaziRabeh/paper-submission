@@ -120,7 +120,7 @@ export async function getMyPapers(personId: string | undefined): Promise<{ ready
       const v = s.venues!;
       const role = r.is_corresponding ? "Corresponding author" : r.position === 1 ? "Author" : "Co-author";
       const detail = s.stage === "draft" ? `Step ${Math.min(s.draft_step ?? 1, 7)} of 7` : s.stage_detail ?? "";
-      const STEP = ["type", "type", "details", "authors", "keywords", "files", "conflicts", "review"];
+      const STEP = ["type", "type", "details", "authors", "keywords", "files", "review", "review"]; // step 6 (Conflicts) hidden for now
       const pending = r.confirmation === "pending";
       const href = pending ? `/submissions/${s.id}/confirm` : s.stage === "draft" ? `/submissions/${s.id}/${STEP[Math.min(s.draft_step ?? 1, 7)]}` : `/submissions/${s.id}`;
       return {

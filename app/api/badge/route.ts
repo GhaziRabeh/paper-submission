@@ -4,7 +4,7 @@ import { getMe } from "@/lib/auth/me";
 import { getBrand } from "@/lib/config/brand";
 
 // PR09 "Save badge" as PDF: the signed-in person's PIN card (business-card size, 85 × 55 mm).
-export async function GET() {
+export async function GET(request: Request) {
   const brand = await getBrand();
   const me = await getMe();
   if (!me) return new Response("Sign in first", { status: 401 });
@@ -15,7 +15,7 @@ export async function GET() {
   const mm = (n: number) => (n * 72) / 25.4;
   const W = mm(85), H = mm(55);
   const doc = await PDFDocument.create();
-  doc.setTitle(`${brand} ID ${id}`);
+  doc.setTitle(`PIN ${id}`);
   const page = doc.addPage([W, H]);
   const serif = await doc.embedFont(StandardFonts.TimesRoman);
   const sans = await doc.embedFont(StandardFonts.Helvetica);
@@ -31,14 +31,22 @@ export async function GET() {
   };
 
   page.drawRectangle({ x: 0, y: H - mm(2.2), width: W, height: mm(2.2), color: navy });
-  page.drawCircle({ x: mm(7), y: H - mm(8), size: mm(2.2), borderColor: ink, borderWidth: 0.8 });
-  page.drawCircle({ x: mm(7), y: H - mm(8), size: mm(0.6), color: saffron });
-  page.drawText(`${brand}`, { x: mm(10.5), y: H - mm(9.3), size: 11, font: serif, color: ink });
+  // The Hyper Papers logo (public/logo); the name in text if the image can't be read.
+  const logoRes = await fetch(new URL("/logo/hyper-papers-on-light.png", request.url)).catch(() => null);
+  const logo = logoRes?.ok ? await doc.embedPng(await logoRes.arrayBuffer()).catch(() => null) : null;
+  if (logo) {
+    const lh = mm(6.5);
+    page.drawImage(logo, { x: mm(5.5), y: H - mm(11.5), height: lh, width: (logo.width / logo.height) * lh });
+  } else {
+    page.drawCircle({ x: mm(7), y: H - mm(8), size: mm(2.2), borderColor: ink, borderWidth: 0.8 });
+    page.drawCircle({ x: mm(7), y: H - mm(8), size: mm(0.6), color: saffron });
+    page.drawText(`${brand}`, { x: mm(10.5), y: H - mm(9.3), size: 11, font: serif, color: ink });
+  }
 
   const name = (p.badge_name || p.paper_name || p.display_name || me.email).trim();
   page.drawText(fit(name, serif, 13, mm(48)), { x: mm(6), y: H - mm(19), size: 13, font: serif, color: ink });
   if (me.affiliation?.institution) page.drawText(fit(me.affiliation.institution, sans, 7, mm(48)), { x: mm(6), y: H - mm(23.5), size: 7, font: sans, color: muted });
-  page.drawText("PLENARY ID", { x: mm(6), y: H - mm(33), size: 5.5, font: sans, color: muted });
+  page.drawText("PIN", { x: mm(6), y: H - mm(33), size: 5.5, font: sans, color: muted });
   page.drawText(id, { x: mm(6), y: H - mm(38.5), size: 12, font: mono, color: ink });
   if (p.orcid) page.drawText(`ORCID ${clean(p.orcid)}`, { x: mm(6), y: H - mm(43), size: 6, font: sans, color: muted });
 
@@ -55,6 +63,6 @@ export async function GET() {
 
   const bytes = await doc.save();
   return new Response(new Uint8Array(bytes), {
-    headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="plenary-id-${id}.pdf"`, "cache-control": "private, no-store" },
+    headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="pin-${id}.pdf"`, "cache-control": "private, no-store" },
   });
 }

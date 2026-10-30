@@ -6,6 +6,7 @@ import { focusFirstError } from "@/components/auth/focus-error";
 import { sendCodeToExisting, startSignup, type ExistingKind, type Org, type StartState } from "@/lib/auth/onboarding-actions";
 import { AffiliationPicker } from "@/components/auth/affiliation-picker";
 import { GradeSelect } from "@/components/auth/grade-select";
+import { SkillsInput } from "@/components/auth/skills-input";
 import { OrcidIcon, ui } from "@/components/auth/split-layout";
 import { useT } from "@/lib/i18n/client";
 import { PasswordFields } from "@/components/auth/password-fields";
@@ -33,16 +34,20 @@ function checkEmail(v: string, tried: boolean): EmailCheck {
  * Step 1 of 4: name, email and terms. The password is chosen after the email code (step 3), unless the
  * rollback switch (SIGNUP_PASSWORD_FIRST=1) asks for the old order, where it is chosen here.
  */
-export function CreateAccountForm({ next, venue, withPassword = false, noCode = false, countries = [] }: { next?: string; venue?: string; withPassword?: boolean; noCode?: boolean; countries?: { code: string; name: string }[] }) {
+export function CreateAccountForm({ next, venue, email: invitedEmail, withPassword = false, noCode = false, countries = [] }: { next?: string; venue?: string; email?: string; withPassword?: boolean; noCode?: boolean; countries?: { code: string; name: string }[] }) {
   const [state, action, pending] = useActionState(startSignup, {} as StartState);
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
-  const [email, setEmail] = useState("");
+  // Filled in from ?email= (the link in a co-author invitation), so the account claims the papers sent to it.
+  const [email, setEmail] = useState(invitedEmail ?? "");
   const [agree, setAgree] = useState(false);
   const [tried, setTried] = useState(false);
   const [orcidSoon, setOrcidSoon] = useState(false);
   const [pwOk, setPwOk] = useState(false);
   const [uni, setUni] = useState<Org | null>(null);
+  const [country, setCountry] = useState("");
+  const [grade, setGrade] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
   const t = useT();
   // server answered with field errors: focus the first one (plan D3)
@@ -54,6 +59,10 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
   const lastBad = (tried && !last.trim()) || !!fe?.lastName;
   const emailErr = fe?.email?.[0];
   const agreeErr = (tried && !agree) || !!fe?.consent;
+  const uniBad = (tried && !uni) || !!fe?.university;
+  const countryBad = (tried && !country) || !!fe?.country;
+  const gradeBad = (tried && !grade.trim()) || !!fe?.grade;
+  const skillsBad = (tried && !skills.length) || !!fe?.skills;
   const red = "2px solid #B3261E";
   const norm = "1px solid #B7BDC9";
 
@@ -64,7 +73,7 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
         <span role="tab" aria-selected className="flex h-[38px] flex-1 items-center justify-center rounded-[4px] bg-white text-[14px] font-semibold text-[#121826] shadow-[0_1px_2px_rgba(18,24,38,.12)]">{t("Create account")}</span>
       </div>
 
-      <p className={`mt-[26px] ${ui.kicker}`}>{t("Step 1 of 4")}</p>
+      <p className={`mt-[26px] ${ui.kicker}`}>{noCode ? t("Step 1 of 2") : t("Step 1 of 4")}</p>
       <h1 className={`mt-1.5 ${ui.h1}`}>{t("Create your account")}</h1>
       <p className={`mt-2 ${ui.muted}`}>{t("Free for authors and reviewers. Takes about a minute.")}</p>
 
@@ -83,13 +92,19 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
       <form ref={formRef} action={action} noValidate onSubmit={(ev) => {
         setTried(true);
         // stay on the page (keeping everything typed) until the basics are right; the server checks again
-        if (!first.trim() || !last.trim() || !agree || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim()) || (withPassword && !pwOk)) {
+        if (!first.trim() || !last.trim() || !agree || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim()) || !uni || !country || !grade.trim() || !skills.length || (withPassword && !pwOk)) {
           ev.preventDefault();
           focusFirstError(formRef.current);
         }
       }}>
         <input type="hidden" name="next" value={next ?? ""} />
         <input type="hidden" name="venue" value={venue ?? ""} />
+        {/* Grade first (Mr., Ms., Dr., Prof., or typed), then the name. */}
+        <div className="mb-3.5 flex flex-col gap-1.5">
+          <FieldLabel htmlFor="pr6-grade" required>{t("Grade")}</FieldLabel>
+          <GradeSelect id="pr6-grade" onChange={setGrade} invalid={gradeBad} />
+          {gradeBad ? <p className={ui.error}>{t(fe?.grade?.[0] ?? "Choose your grade.")}</p> : null}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <FieldLabel htmlFor="pr6-first" required info={t("As it appears on your papers. Co-authors and chairs find you by this name.")}>{t("First name")}</FieldLabel>
@@ -113,24 +128,28 @@ export function CreateAccountForm({ next, venue, withPassword = false, noCode = 
           <span id="pr6-email-hint" className="text-[13px]" style={{ color: emailErr ? "#B3261E" : e.hintInk }}>{t(emailErr ?? e.hint)}</span>
         </div>
 
-        {/* Optional: carried into step 4 (research profile) as the affiliation and country. */}
+        {/* Required: carried into step 4 (research profile) as the affiliation and country. */}
         <input type="hidden" name="university" value={uni?.name ?? ""} />
         <input type="hidden" name="universityRor" value={uni?.id ?? ""} />
         {/* All universities (ROR search as you type); "Other" lets you type the name yourself. */}
         <div className="relative mt-3.5 flex flex-col gap-1.5">
-          <AffiliationPicker id="pr6-university" label={<>{t("University")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></>}
-            value={uni} onChange={setUni} invalid={!!fe?.university} otherOption />
+          <AffiliationPicker id="pr6-university" label={<>{t("Affiliation")}<span aria-hidden className="ml-0.5 text-[#B3261E]">*</span><span className="sr-only"> ({t("required")})</span></>}
+            value={uni} onChange={setUni} invalid={uniBad} otherOption />
+          {uniBad ? <p className={ui.error}>{t(fe?.university?.[0] ?? "Choose your affiliation.")}</p> : null}
         </div>
         <div className="mt-3.5 flex flex-col gap-1.5">
-          <FieldLabel htmlFor="pr6-country">{t("Country")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></FieldLabel>
-          <select id="pr6-country" name="country" autoComplete="country" defaultValue="" className={`${ui.input} px-2.5`} style={{ border: fe?.country ? red : norm }} aria-invalid={fe?.country ? true : undefined}>
+          <FieldLabel htmlFor="pr6-country" required>{t("Country")}</FieldLabel>
+          <select id="pr6-country" name="country" autoComplete="country" value={country} onChange={(ev) => setCountry(ev.target.value)} aria-required="true" className={`${ui.input} px-2.5`} style={{ border: countryBad ? red : norm }} aria-invalid={countryBad || undefined}>
             <option value="">{t("Choose…")}</option>
             {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
+          {countryBad ? <p className={ui.error}>{t(fe?.country?.[0] ?? "Choose your country.")}</p> : null}
         </div>
+        {/* Skills: type and pick from the conference keywords (lib/skills/keywords.ts). */}
         <div className="mt-3.5 flex flex-col gap-1.5">
-          <FieldLabel htmlFor="pr6-grade">{t("Grade")} <span className="font-normal text-[#4A5263]">({t("optional")})</span></FieldLabel>
-          <GradeSelect id="pr6-grade" />
+          <FieldLabel htmlFor="pr6-skills" required info={t("Pick the topics you work on. Chairs use them to find reviewers and session chairs.")}>{t("Skills")}</FieldLabel>
+          <SkillsInput id="pr6-skills" onChange={setSkills} invalid={skillsBad} />
+          {skillsBad ? <p className={ui.error}>{t(fe?.skills?.[0] ?? "Choose at least one skill.")}</p> : null}
         </div>
 
         {withPassword ? <PasswordFields email={email} tried={tried} serverErrors={{ password: fe?.password, confirm: fe?.confirm }} idPrefix="pr6" onValid={setPwOk} signup /> : null}

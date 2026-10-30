@@ -2,7 +2,7 @@
 export const site27_it: Record<string, string> = {
   "Event directory": "Elenco degli eventi",
   "PIN recognised.": "PIN riconosciuto.",
-  "A PIN is a number from 1000 up, like 1024.": "Un PIN è un numero da 1000 in su, per esempio 1024.",
+  "A PIN is a number from 10000 up, like 10024.": "Un PIN è un numero da 10000 in su, per esempio 10024.",
   "Enter your email or your PIN.": "Inserisci la tua email o il tuo PIN.",
   "Enter your email or your PIN": "Inserisci la tua email o il tuo PIN",
   "Email or PIN.": "Email o PIN.",

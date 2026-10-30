@@ -68,6 +68,9 @@ export function statusOf(v: DirectoryVenue, now: number, tz: string, t: T = iden
   if (conf) return { label: t("Happening"), closes: t("Now"), aoe: v.startsOn ? fmtRange(v.startsOn, v.endsOn, intl, t) : "", local: t("Program online"), days: 999, extended: false, state: "now" };
   if (v.kind === "journal") return { label: t("Status"), closes: t("Open"), aoe: t("No deadline"), local: t("Submit any time"), days: 999, extended: false, state: "rolling" };
   if (v.endsOn && Date.parse(`${v.endsOn}T23:59:59Z`) < now) return { label: t("Status"), closes: t("Done"), aoe: t("Held {when}", { when: fmtMonth(v.startsOn, intl) }), local: "", days: 999, extended: false, state: "done" };
+  // Every deadline already passed (the event itself still to come): submissions are closed.
+  const hadDeadline = v.dates.some((d) => (d.kind === "submission" || d.kind === "proposal" || d.kind === "final") && Date.parse(d.startsAt) <= now);
+  if (hadDeadline) return { label: t("Status"), closes: t("Closed"), aoe: t("Submissions closed"), local: "", days: 999, extended: false, state: "later" };
   return { label: t("Status"), closes: "—", aoe: t("Dates to be announced"), local: "", days: 999, extended: false, state: "later" };
 }
 

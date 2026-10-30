@@ -36,7 +36,7 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
   const t = await getT();
 
   return (
-    <SplitLayout
+    <SplitLayout showAside={false}
       width={440}
       aside={
         <NavyAside label={t("Account set-up progress")} kicker={t("Creating your account")} title={first ? t("Nearly done, {name}.", { name: first }) : t("Nearly done.")}>
@@ -60,7 +60,7 @@ async function Content({ searchParams }: { searchParams: Promise<Search> }) {
 async function PendingPassword({ email, first, next }: { email: string; first: string; next?: string }) {
   const t = await getT();
   return (
-    <SplitLayout
+    <SplitLayout showAside={false}
       width={440}
       aside={
         <NavyAside label={t("Account set-up progress")} kicker={t("Creating your account")} title={first ? t("Nearly done, {name}.", { name: first }) : t("Nearly done.")}>

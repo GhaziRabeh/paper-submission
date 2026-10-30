@@ -39,8 +39,14 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: name,
     manifest: "/manifest.webmanifest",
     icons: {
-      icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }, { url: "/icons/icon.svg", type: "image/svg+xml" }],
-      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+      // Tab icon follows the system theme: icon.svg switches itself (navy on light, white on dark); the PNGs are
+      // for browsers without SVG tab icons (Safari), picked by the same media query where supported.
+      icon: [
+        { url: "/icons/hp-icon.svg", type: "image/svg+xml" },
+        { url: "/icons/hp-favicon-32.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: light)" },
+        { url: "/icons/hp-favicon-32-light.png", sizes: "32x32", type: "image/png", media: "(prefers-color-scheme: dark)" },
+      ],
+      apple: [{ url: "/icons/hp-apple-touch-icon.png", sizes: "180x180" }],
     },
     appleWebApp: { capable: true, title: name, statusBarStyle: "default" },
     formatDetection: { telephone: false },
@@ -58,7 +64,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children, params }: LayoutProps<"/[lang]">) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
-  const [locale, brand, flags] = await Promise.all([getLocale(), getBrand(), getSiteFlags()]);
+  const locale = await getLocale();
+  const brand = await getBrand();
+  const flags = await getSiteFlags();
   return (
     <html lang={locale} data-single={flags.singleEvent ? "1" : undefined} data-langs={flags.languages ? "1" : undefined} suppressHydrationWarning>
       <head>

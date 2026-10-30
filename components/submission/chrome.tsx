@@ -38,6 +38,9 @@ export function TitleBand({ crumb, title, venue, generatedAt, closedOn }: { crum
   );
 }
 
+// The Conflicts step is hidden for now (its page still exists; Upload PDF continues straight to Review & submit).
+const SHOWN = STEPS.filter((s) => s.key !== "type" && s.key !== "keywords" && s.key !== "conflicts");
+
 export type RailState = { done: Record<StepKey, boolean>; current: StepKey | null; reachable: number; base: string; loading?: boolean };
 
 export function StepRail({ rail, draft, footer = true }: { rail: RailState; draft?: { title: string; venue: string; index: number; total: number; switchHref?: string; deletable?: boolean } | "loading"; footer?: boolean }) {
@@ -63,16 +66,17 @@ export function StepRail({ rail, draft, footer = true }: { rail: RailState; draf
           {draft.deletable && rail.base.startsWith("/submissions/") ? <DeleteDraftButton id={rail.base.split("/")[2]} /> : null}
         </div>
       ) : null}
-      <p className="mb-2 mt-5 font-mono text-[11px] uppercase tracking-[0.06em] text-[#4A5263]">{cur ? t("Step {n} of 7", { n: cur.n }) : t("Submitted · all steps done")}</p>
+      {/* "Venue & type" (picked in the event's table) and "Keywords" (priorities on Details) are hidden: steps 1–5. */}
+      <p className="mb-2 mt-5 font-mono text-[11px] uppercase tracking-[0.06em] text-[#4A5263]">{cur ? t("Step {n} of {total}", { n: Math.max(1, SHOWN.findIndex((s) => s.key === cur.key) + 1), total: SHOWN.length }) : t("Submitted · all steps done")}</p>
       <ol className="m-0 flex list-none flex-row gap-1 overflow-x-auto p-0 lg:flex-col">
-        {STEPS.map((s) => {
+        {SHOWN.map((s, idx) => {
           const isCur = s.key === rail.current, done = rail.done[s.key] && !isCur, can = s.n <= rail.reachable && rail.base;
           const badge = done ? (
             <span className="flex size-6 flex-none items-center justify-center rounded-full bg-[#18744F] text-[11px] text-white" aria-label={t("Done")}>✓</span>
           ) : isCur ? (
-            <span className="flex size-6 flex-none items-center justify-center rounded-full bg-[#F2A93B] text-[12px] font-semibold text-[#0E1B3D]">{s.n}</span>
+            <span className="flex size-6 flex-none items-center justify-center rounded-full bg-[#F2A93B] text-[12px] font-semibold text-[#0E1B3D]">{idx + 1}</span>
           ) : (
-            <span className="box-border flex size-6 flex-none items-center justify-center rounded-full border-[1.5px] border-[#B7BDC9] text-[12px] text-[#4A5263]">{s.n}</span>
+            <span className="box-border flex size-6 flex-none items-center justify-center rounded-full border-[1.5px] border-[#B7BDC9] text-[12px] text-[#4A5263]">{idx + 1}</span>
           );
           const body = (
             <span className="flex items-center gap-3">

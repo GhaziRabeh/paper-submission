@@ -11,6 +11,7 @@ import { absoluteUrl, safeNext } from "@/lib/config/site";
 import { detectIdentifier } from "@/lib/auth/identifier";
 import { accountEmailFor, maskEmail, plenaryIdSignIn } from "@/lib/auth/plenary-id";
 import { getSiteFlags } from "@/lib/config/site-flags";
+import { clearPasswordOk, emailCodeAfterPassword, hasPasswordOk, setPasswordOk } from "@/lib/auth/password-ok";
 
 export type SignInState = {
   step?: "email" | "sent";
@@ -20,6 +21,8 @@ export type SignInState = {
   email?: string;
   mode?: "signin" | "create";
   message?: string;
+  /** The code is the second step after the password (SIGNIN_TWO_STEP_EMAIL=on). */
+  twoStep?: boolean;
   /** Shown on the code step, e.g. when a code was sent moments ago. */
   notice?: string;
   fieldErrors?: Record<string, string[] | undefined>;
@@ -69,7 +72,7 @@ const passwordSchema = z.object({
 export async function signInWithPassword(_: SignInState, formData: FormData): Promise<SignInState> {
   const parsed = passwordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
-  const { email, kind, lookedUp } = await resolveEmail(parsed.data.identifier);
+  const { email, kind, lookedUp, ref } = await resolveEmail(parsed.data.identifier);
   if (!email) return lookedUp ? { message: GENERIC } : notYet(kind);
 
   const supabase = await createClient();
@@ -90,6 +93,18 @@ export async function signInWithPassword(_: SignInState, formData: FormData): Pr
   }
   const locked = await refuseIfLocked(supabase);
   if (locked) return { message: locked };
+  if (emailCodeAfterPassword()) {
+    // Two-step by email: the password was right, but the session opens only with the code we email now (verifyCode).
+    await supabase.auth.signOut({ scope: "local" });
+    await setPasswordOk(email);
+    const { error: e2 } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false, emailRedirectTo: absoluteUrl(`/auth/confirm?next=${encodeURIComponent(safeNext(parsed.data.next))}`) },
+    });
+    const limited = !!e2 && (e2.status === 429 || /rate limit|seconds|too many/i.test(e2.message));
+    if (e2 && !limited) return { message: "We couldn’t send your code. Try again in a minute." };
+    return { step: "sent", twoStep: true, sentTo: lookedUp ? maskEmail(email) : email, sentKind: kind, email: lookedUp ? ref : email, mode: "signin", notice: limited ? "A code was sent very recently — use the one already in your inbox (check spam too). You can ask for a new one in a minute." : undefined };
+  }
   await recordSignIn(supabase, "password");
   // TODO(auth): "Keep me signed in" unchecked -> session-only cookies (no persistent maxAge).
   redirect(await continueTo(supabase, parsed.data.next));
@@ -102,7 +117,10 @@ const codeRequestSchema = z.object({
 
 /** "Email me a link": sends a sign-in link + 6-digit code. Never creates an account. */
 export async function sendSignInCode(_: SignInState, formData: FormData): Promise<SignInState> {
-  if (!(await getSiteFlags()).signinEmailCode) return { message: "Sign-in codes are switched off. Sign in with your password, or reset it." };
+  const flags = await getSiteFlags();
+  if (!flags.signinEmailCode) return { message: "Sign-in codes are switched off. Sign in with your password, or reset it." };
+  // Two-step by email: a code alone can't sign in, it comes after the password.
+  if (emailCodeAfterPassword() && flags.signinPassword) return { message: "Sign in with your password first. We then email you a code." };
   const parsed = codeRequestSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
   const { email, kind, lookedUp, ref } = await resolveEmail(parsed.data.identifier);
@@ -140,6 +158,9 @@ export async function verifyCode(prev: SignInState, formData: FormData): Promise
   const { email } = await accountEmailFor(parsed.data.email);
   const wrong: SignInState = { ...prev, step: "sent", fieldErrors: { code: ["That code is wrong or has expired. Check the latest email or ask for a new one."] } };
   if (!email) return wrong;
+  // Two-step by email: the code counts only after the right password on this device in the last 15 minutes.
+  const twoStep = emailCodeAfterPassword() && (await getSiteFlags()).signinPassword;
+  if (twoStep && !(await hasPasswordOk(email))) return { ...prev, step: "sent", message: "Your sign-in timed out. Go back and enter your password again." };
   const supabase = await createClient();
   let { error } = await supabase.auth.verifyOtp({ email, token: parsed.data.code, type: "email" });
   // an unconfirmed account got a confirmation code instead of a sign-in code
@@ -150,6 +171,7 @@ export async function verifyCode(prev: SignInState, formData: FormData): Promise
   }
   const locked = await refuseIfLocked(supabase);
   if (locked) return { ...prev, step: "sent", message: locked };
-  await recordSignIn(supabase, "email_code");
+  if (twoStep) await clearPasswordOk();
+  await recordSignIn(supabase, twoStep ? "password" : "email_code");
   redirect(await continueTo(supabase, parsed.data.next));
 }

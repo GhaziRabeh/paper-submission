@@ -14,9 +14,9 @@ export function detectIdentifier(value: string): Detected {
   const digits = t.replace(/[^0-9]/g, "");
   if (!t) return { kind: "none", tone: "neutral", icon: "?", hint: "Use whichever you remember — we’ll recognise it." };
   if (t.indexOf("@") > 0) return { kind: "email", tone: "info", icon: "@", chip: "EMAIL", hint: "Email recognised." };
-  if (/^(pin)?[\s:#-]*[1-9][0-9]{3,8}$/i.test(t))
+  if (/^(pin)?[\s:#-]*[1-9][0-9]{4,8}$/i.test(t))
     return { kind: "id", tone: "ok", icon: "#", chip: `PIN ${digits} ✓`, hint: "PIN recognised." };
-  if (/^pin/i.test(t)) return { kind: "id", tone: "info", icon: "#", chip: "PIN", hint: "A PIN is a number from 1000 up, like 1024." };
+  if (/^pin/i.test(t)) return { kind: "id", tone: "info", icon: "#", chip: "PIN", hint: "A PIN is a number from 10000 up, like 10024." };
   if (/^\+/.test(t) || (/^0/.test(t) && digits.length >= 9))
     return { kind: "phone", tone: "info", icon: "+", chip: "PHONE", hint: "Phone recognised. Codes go to your account email." };
   if (/^[a-z][a-z0-9._-]{2,31}$/i.test(t)) return { kind: "alias", tone: "ok", icon: "Aa", chip: "ALIAS", hint: "Login alias recognised." };

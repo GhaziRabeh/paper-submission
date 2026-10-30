@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import { getVenue } from "@/lib/venues/data";
 import { fmtAoE, nextDeadline } from "@/lib/venues/time";
 
@@ -17,6 +18,7 @@ export async function venueDeadline(slug: string | null, intl = "en-GB"): Promis
   if (!slug) return null;
   const v = await getVenue(slug);
   if (!v) return null;
+  await connection(); // the clock is read per request ("now" decides the next deadline)
   const now = Date.now();
   const d = nextDeadline(v.venue, now);
   return {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "@/components/site/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -73,7 +74,8 @@ function Brand() {
   const s = useSummary();
   return (
     <div className="min-w-0">
-      <div className="font-serif text-[22px] leading-none text-[#F5F6F3]"><BrandName /></div>
+      {/* The Hyper Papers logo (white + saffron, public/logo). */}
+      <Image src="/logo/hyper-papers-on-dark.png" alt={t.brand} width={130} height={36} className="h-9 w-auto" />
       <p className="mb-0 mt-2 max-w-[34ch] text-[13px] leading-[1.55] text-[#B9C3DA]">{t("Conference submission & review, built for researchers.")}</p>
       {s?.signedIn ? (
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
@@ -195,7 +197,7 @@ export function SiteFooter({ size = "full" }: { size?: FooterSize }) {
       <footer className={shell}>
         <div className={`${inner} flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-4 text-[13px]`}>
           <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="font-serif text-[20px] leading-none text-[#F5F6F3]"><BrandName /></span>
+            <Image src="/logo/hyper-papers-on-dark.png" alt={t.brand} width={101} height={28} className="h-7 w-auto" />
             <StatusPill compact />
             {tz ? <span className="text-[12px] text-[#8F9CC0]">{t("Times shown in your time zone ({tz})", { tz })}</span> : null}
           </span>

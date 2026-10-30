@@ -19,7 +19,7 @@ export function ForgotForm({ initial = "" }: { initial?: string }) {
         <label htmlFor="pr10-id" className={ui.label}>{t("Email, PIN or alias")}</label>
         <input
           id="pr10-id" name="identifier" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false}
-          placeholder="name@uni.edu · 1024 · jdoe"
+          placeholder="name@uni.edu · 10024 · jdoe"
           value={id} onChange={(e) => setId(e.target.value)}
           aria-invalid={err ? true : undefined} aria-describedby={err ? "pr10-id-err" : undefined}
           className={`${ui.input} h-12`}
@@ -31,12 +31,13 @@ export function ForgotForm({ initial = "" }: { initial?: string }) {
       <button type="submit" disabled={pending} className={`mt-[18px] h-12 ${ui.primary}`}>
         {pending ? t("Sending…") : t("Send reset code")}
       </button>
+      {/* "You may not need a password" box hidden for now.
       <div className="mt-[22px] rounded-[6px] border border-[#DADDE3] bg-white px-4 py-3.5 text-[14px] text-[#4A5263]">
         <strong className="text-[#121826]">{t("You may not need a password.")}</strong> {t("Plenary can sign you in with a code by email or a passkey.")}{" "}
         <Link href="/sign-in" className={ui.link}>{t("Email me a sign-in code instead")}</Link>
-      </div>
+      </div> */}
       <p className={`mt-[18px] text-[14px] ${ui.muted}`}>
-        {t("No longer have access to that email?")} <Link href="/account-help" className={ui.link}>{t("Recover your account")}</Link>
+        {t("No longer have access to that email?")} <Link href="/contact" className={ui.link}>{t("Contact us")}</Link>
       </p>
     </form>
   );

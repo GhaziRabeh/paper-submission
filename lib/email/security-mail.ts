@@ -12,9 +12,10 @@ const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const SERIF = "Georgia,'Times New Roman',serif";
 
-type Layout = { subject: string; kicker: string; kickerInk: string; title: string; lead: string; code?: string | null; minutes?: number; button?: { label: string; href: string } | null; rows: [string, string][]; note: string; to: string };
+type Layout = { subject: string; kicker: string; kickerInk: string; title: string; lead: string; code?: string | null; minutes?: number; button?: { label: string; href: string } | null; rows: [string, string][]; note: string; to: string; detailsLabel?: string; footer?: string };
 
-function layout(l: Layout) {
+/** The account-email layout (logo, kicker, title, code or button, details, note). Also used for co-author invitations. */
+export function layout(l: Layout) {
   const digits = l.code
     ? l.code.split("").map((d, k) => `${k === Math.ceil(l.code!.length / 2) ? '<td style="width:10px"></td>' : ""}<td style="width:44px;height:56px;border:1px solid #DADDE3;border-radius:6px;background:#ffffff;text-align:center;font:600 30px/56px ${MONO};color:#0E1B3D">${esc(d)}</td>`).join('<td style="width:6px"></td>')
     : "";
@@ -30,21 +31,21 @@ function layout(l: Layout) {
     </div>` : "";
   const details = `
     <div style="margin-top:24px;border-top:1px solid #EEF0EC;padding-top:14px">
-      <p style="margin:0 0 6px;font:500 11px/1.4 ${MONO};letter-spacing:.06em;text-transform:uppercase;color:#4A5263">Request details</p>
+      <p style="margin:0 0 6px;font:500 11px/1.4 ${MONO};letter-spacing:.06em;text-transform:uppercase;color:#4A5263">${esc(l.detailsLabel ?? "Request details")}</p>
       <table role="presentation" width="100%" style="border-collapse:collapse;font:13px/1.5 ${SANS}">${l.rows.map(([k, v]) => `<tr><td style="padding:5px 0;color:#4A5263;width:110px;vertical-align:top">${esc(k)}</td><td style="padding:5px 0;color:#121826">${esc(v)}</td></tr>`).join("")}</table>
     </div>`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(l.subject)}</title></head>
 <body style="margin:0;background:#EEF0EC;padding:28px 12px">
   <div style="display:none;max-height:0;overflow:hidden">${esc(l.lead)}</div>
   <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #DADDE3;border-radius:10px;padding:32px 28px;font:15px/1.55 ${SANS};color:#121826">
-    <p style="margin:0;font:22px/1 ${SERIF};color:#121826">Plenary</p>
+    <img src="${absoluteUrl("/logo/hyper-papers-on-light.png")}" alt="Plenary" width="144" height="40" style="display:block;height:40px;width:auto;border:0" />
     <p style="margin:24px 0 0;font:500 11px/1.4 ${MONO};letter-spacing:.08em;text-transform:uppercase;color:${l.kickerInk}">${esc(l.kicker)}</p>
     <h1 style="margin:6px 0 0;font:400 30px/1.15 ${SERIF};color:#121826">${esc(l.title)}</h1>
     <p style="margin:8px 0 0;color:#4A5263">${esc(l.lead)}</p>
     ${codeBlock}${button}${details}
     <div style="margin-top:20px;padding:12px 14px;background:#FFF6E6;border:1px solid #F1D29A;border-radius:6px;font:13px/1.5 ${SANS};color:#3B2A07">${l.note}</div>
   </div>
-  <p style="max-width:600px;margin:18px auto 0;font:12px/1.6 ${SANS};color:#4A5263;text-align:center">Sent to <strong style="color:#121826">${esc(l.to)}</strong> by Plenary · conference submission &amp; review.<br>This is a security email, so it can't be turned off.</p>
+  <p style="max-width:600px;margin:18px auto 0;font:12px/1.6 ${SANS};color:#4A5263;text-align:center">Sent to <strong style="color:#121826">${esc(l.to)}</strong> by Plenary · conference submission &amp; review.<br>${l.footer ?? "This is a security email, so it can't be turned off."}</p>
 </body></html>`;
   const text = [l.title, "", l.lead, l.code ? `\nYour code: ${l.code} (expires in ${l.minutes ?? 10} minutes)` : "", l.button ? `\n${l.button.label}: ${l.button.href}` : "", "", ...l.rows.map(([k, v]) => `${k}: ${v}`), "", l.note.replace(/<[^>]+>/g, "")].join("\n");
   return { subject: l.subject, html, text };

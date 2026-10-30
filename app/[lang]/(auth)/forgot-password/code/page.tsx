@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type Search = { email?: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PID_RE = /^[1-9]\d{3,8}$/;
+const PID_RE = /^[1-9]\d{4,8}$/;
 const ALIAS_RE = /^[a-z][a-z0-9._-]{2,31}$/;
 /** The email, or a PIN when the person reset with their ID (the email is never put in the address). */
 const who = (raw?: string) => { const v = (raw ?? "").trim(); return PID_RE.test(v.toUpperCase()) ? v.toUpperCase() : v.toLowerCase(); };
@@ -59,6 +59,7 @@ async function Aside({ searchParams }: { searchParams: Promise<Search> }) {
 /** Canvas PR10b-ResetCode. */
 export default function Page({ searchParams }: { searchParams: Promise<Search> }) {
   return (
+    // No right-hand panel: the form sits alone in the middle.
     <SplitLayout showAside={false} aside={<Suspense fallback={<AuthAsideSkeleton />}><Aside searchParams={searchParams} /></Suspense>}>
       <Suspense fallback={<AuthFormSkeleton />}>
         <Left searchParams={searchParams} />

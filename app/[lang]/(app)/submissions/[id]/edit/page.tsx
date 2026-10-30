@@ -31,7 +31,7 @@ async function Inner({ params }: P) {
   const sections: { key: string; summary: string; href: string }[] = [
     { key: "authors", summary: ctx.authors.map((a) => a.name).join(", "), href: `${base}/authors` },
     { key: "keywords", summary: ctx.sub.keywords.map((k) => t(k)).join(", "), href: `${base}/keywords` },
-    { key: "conflicts", summary: t("{n} declared", { n: ctx.conflicts.length }), href: `${base}/conflicts` },
+    // { key: "conflicts", summary: t("{n} declared", { n: ctx.conflicts.length }), href: `${base}/conflicts` }, (Conflicts step hidden for now)
   ];
   const flag = (k: string) => changed.has(k) ? <span className="ml-2 rounded-[3px] bg-[#FBEFDD] px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[#7A4508]">{t("Changed")}</span> : null;
   return (

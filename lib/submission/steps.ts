@@ -13,7 +13,7 @@ export type StepKey = (typeof STEPS)[number]["key"];
 export const DEFAULT_TRACKS = ["Control theory and design", "Robotics and autonomous systems", "Optimisation and learning", "Networked and multi-agent systems", "Applications: energy, transport, biomedical"];
 
 export const DEFAULT_KEYWORDS = [
-  { group: "Control design", keywords: ["Adaptive control", "Robust control", "Nonlinear control", "Model predictive control", "Optimal control", "Backstepping"] },
-  { group: "Systems", keywords: ["Marine systems", "Autonomous vehicles", "Networked systems", "Power systems", "Biomedical systems", "Robotic manipulators"] },
-  { group: "Methods", keywords: ["Estimation and filtering", "Lyapunov methods", "Learning-based control", "Optimisation", "Identification", "Multi-agent systems"] },
+  { group: "Decision and optimization", keywords: ["Adaptive control", "Robust control", "Nonlinear control", "Model predictive control", "Optimal control", "Backstepping"] },
+  { group: "Information technologies", keywords: ["Marine systems", "Autonomous vehicles", "Networked systems", "Power systems", "Biomedical systems", "Robotic manipulators"] },
+  { group: "Computer science", keywords: ["Estimation and filtering", "Lyapunov methods", "Learning-based control", "Optimisation", "Identification", "Multi-agent systems"] },
 ];
